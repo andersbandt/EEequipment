@@ -1,7 +1,14 @@
-from xdm1041defs import XDM1041Mode, XDM1041Cmd
+
+
+
+# import modules
 import logging
 import serial
 import time
+
+# import user created modules
+from EEequipment.xdm1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
+from EEequipment.xdm1041 import xdm1041helper
 
 
 class XDM1041:
@@ -32,7 +39,7 @@ class XDM1041:
                 print("{}:{} ".format(key, value), end='')
             print('')
 
-    def __init__(self, mode: XDM1041Mode, rng: int = 0, serial_device="/dev/ttyUSB0"):
+    def __init__(self, serial_device, mode: XDM1041Mode, rng: int = 0):
 
         self.mode = mode
         self.logger = logging.getLogger(__name__)
@@ -51,11 +58,10 @@ class XDM1041:
         self.logger.info("Serial port status:{}".format(self.serial.is_open))
 
         self.set_mode(mode)
-        self.set_range(rng)
+        # self.set_range(rng)
+        self.set_range(3)
 
     def connect(self):
-        """
-        """
         if self.serial and self.serial.is_open is False:
             self.serial.open()
 
@@ -97,6 +103,7 @@ class XDM1041:
         manuf_info = self.read_result()
         str_to_k = manuf_info.split(',')
         print(str_to_k)
+        return manuf_info
 
     def send_cmd(self, cmd: str):
         """
@@ -203,3 +210,13 @@ class XDM1041:
         result = self.read_result()
         result = float(result)
         return result
+
+
+    def read_voltage(self):
+        self.set_mode(XDM1041Mode.MODE_VOLTAGE_DC)
+        time.sleep(4) # sleep 2 seconds or else will read 00.000 mV
+        raw_str = self.read_val1_str()
+        print(f"DMM: raw_str: {raw_str}")
+        voltage = xdm1041helper.parse_voltage_str(raw_str)
+        return voltage
+
