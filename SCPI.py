@@ -8,9 +8,10 @@ class SCPI:
     """
         Serial SCPI interface
     """
-    _SIF: None
+    _SIF: serial.Serial  # TODO: understand this line
 
-    def __init__(self, port_dev=None, speed=9600, timeout=2):
+    def __init__(self, port_dev, speed, timeout=2):
+        self._SIF = None
         self._SIF = serial.Serial(
             port=port_dev,
             baudrate=speed,
@@ -19,11 +20,13 @@ class SCPI:
             stopbits=1,
             timeout=timeout)
 
+
     def __del__(self):
-        try:
-            self._SIF.close()
-        except:
-            pass
+        # try:
+        #     self._SIF.close()
+        # except:
+        #     pass
+        self._SIF.close()
 
     def readdata(self):
         """
