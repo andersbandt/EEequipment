@@ -1,7 +1,7 @@
 
 #from SCPI import SCPI
 import pyvisa
-
+import time
 
 
 class SPD3303X:
@@ -38,14 +38,21 @@ class SPD3303X:
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        self.inst.write("*IDN?")
-        response = self.inst.read()
-        resp_arr = response.split(",")
-        self.manufacturer = resp_arr[0]
-        self.product_type = resp_arr[1]
-        self.series_number = resp_arr[2]
-        self.software_version = resp_arr[3]
-        self.hardware_version = resp_arr[4]
+        print("SPD3303X: issuing IDN? command")
+        print(self.inst.query('*IDN?'))
+        
+        # self.inst.write("*IDN?")
+        # time.sleep(1)
+        # print("SPD3303X: reading...")
+        # response = self.inst.read()
+        # print(str(response))
+
+#        resp_arr = response.split(",")
+#        self.manufacturer = resp_arr[0]
+#        self.product_type = resp_arr[1]
+#        self.series_number = resp_arr[2]
+#        self.software_version = resp_arr[3]
+#        self.hardware_version = resp_arr[4]
 
     def __send_cmd(self, cmd):
         '''
@@ -334,7 +341,9 @@ class SPD3303X:
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
+        rm = pyvisa.ResourceManager()
         self.inst = rm.open_resource(instadd)
+        print("SPD3303X: VISA resource connected")
         self.inst.write_termination='\n'
         self.inst.read_termination='\n'
         self.__get_product_info()
