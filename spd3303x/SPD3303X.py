@@ -34,6 +34,23 @@ class SPD3303X:
     software_version = ""
     hardware_version = ""
 
+    def close(self):
+        '''
+        Close the socket connection
+        '''
+        self.inst.close()
+
+    def __init__(self, instadd):
+        '''
+        Init the VISA (pyvisa) connection and get the basic product info
+        '''
+        rm = pyvisa.ResourceManager()
+        self.inst = rm.open_resource(instadd)
+        print("SPD3303X: VISA resource connected")
+        self.inst.write_termination='\n'
+        self.inst.read_termination='\n'
+        self.__get_product_info()
+
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
@@ -331,20 +348,40 @@ class SPD3303X:
         self.inst.write(f"DHCP?")
         return self.inst.read()
 
-    def close(self):
-        '''
-        Close the socket connection
-        '''
-        self.inst.close()
+    def cal_voltage(self, channel, set_v, actual_v):
+        self.inst.write(f"CAL:VOLT CH{channel},{set_v},{actual_v}")
 
-    def __init__(self, instadd):
-        '''
-        Init the VISA (pyvisa) connection and get the basic product info
-        '''
-        rm = pyvisa.ResourceManager()
-        self.inst = rm.open_resource(instadd)
-        print("SPD3303X: VISA resource connected")
-        self.inst.write_termination='\n'
-        self.inst.read_termination='\n'
-        self.__get_product_info()
+
+    def cal_recall(self):
+        print("SPD3303X: querying CALRCL")
+        print(self.inst.query("*CALRCL"))
+        
+    def cal_clear(self, channel, cal_type):
+        NR1 = -1 # for "setting" calibration coefficients
+        NR2 = -1 # for "display" calibration coefficients
+        if channel == 1:
+            if cal_type == "VOLTAGE":
+                NR1 = 0
+                NR2 = 1
+            elif cal_type == "CURRENT":
+                NR1 = 2
+                NR2 = 3
+        elif channel == 2:
+            if cal_type == "VOLTAGE":
+                NR1 = 4
+                NR2 = 5
+            elif cal_type == "CURRENT":
+                NR1 = 6
+                NR2 = 7
+
+        self.inst.write(f"*CALCLS {NR1}")
+        self.inst.write(f"*CALCLS {NR2}")
+
+    def cal_clear_all(self):
+        self.inst.write("*CALCLS 8")
+        
+    def cal_save(self):
+        self.inst.write("*CALST")
+
+        
             
