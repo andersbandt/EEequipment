@@ -2,7 +2,7 @@
 #from SCPI import SCPI
 import pyvisa
 import time
-
+import usb
 
 class SPD3303X:
     """
@@ -21,7 +21,6 @@ class SPD3303X:
         def __str__(self):
             return f'Error Code: {self.code} -> {self.message}'
             
-
     scpi = None
     channel_count = 2
     save_file_count = 5
@@ -46,10 +45,23 @@ class SPD3303X:
         '''
         rm = pyvisa.ResourceManager()
         self.inst = rm.open_resource(instadd)
-        print("SPD3303X: VISA resource connected")
         self.inst.write_termination='\n'
         self.inst.read_termination='\n'
-        self.__get_product_info()
+        self.inst.timeout=4*1000
+
+        try:
+            self.__get_product_info()
+        except usb.core.USBError as e:
+            raise e
+            #print("CRITICAL ERROR: can't get IDN (probably timeout)")
+            #print("Closing old connection")
+            #self.inst.close()
+            #print("... trying once more ...")            
+            #self.inst = rm.open_resource(instadd)
+            #self.inst.write_termination='\n'
+            #self.inst.read_termination='\n'
+            #self.inst.timeout=4*1000
+            
 
     def __get_product_info(self):
         '''
@@ -57,7 +69,7 @@ class SPD3303X:
         '''
         print("SPD3303X: issuing IDN? command")
         print(self.inst.query('*IDN?'))
-        
+            
         # self.inst.write("*IDN?")
         # time.sleep(1)
         # print("SPD3303X: reading...")
@@ -165,10 +177,14 @@ class SPD3303X:
         '''
         Set the voltage value for the selected channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.__send_cmd(f"CH{channel}:VOLTage {value}")
+            # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
+            offset = 0.19637500000000008
+            slope = -0.029375000000000016
+            cal_value = round(value + value*slope + offset, 3)
+            self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
     
     def get_set_voltage(self, channel):
         '''
@@ -292,7 +308,7 @@ class SPD3303X:
     def assign_ip_addr(self, ip):
         '''
         Assign a static Internet Protocol (IP) address for the instrument
-        WARING: This command is invalid when DHCP is on
+        WARNING: This command is invalid when DHCP is on
         '''
         self.__send_cmd(f"IPaddr {ip}")
 
@@ -344,17 +360,20 @@ class SPD3303X:
     def query_dhcp(self):
         '''
         Query to see the status of DHCP
-        '''
+        '''        
         self.inst.write(f"DHCP?")
         return self.inst.read()
 
-    def cal_voltage(self, channel, set_v, actual_v):
-        self.inst.write(f"CAL:VOLT CH{channel},{set_v},{actual_v}")
-
+    def cal_voltage(self, channel, point, actual_v):
+        #cmd = f"CAL:VOLT ch{channel},{point},{actual_v}"
+        cmd = f"CALibration:VOLTage CH{channel},{point},{actual_v}"
+        print(cmd)
+        self.inst.write(cmd)
 
     def cal_recall(self):
-        print("SPD3303X: querying CALRCL")
-        print(self.inst.query("*CALRCL"))
+        cmd = "*CALRCL"
+        print(f"SPD3303X: querying {cmd}")
+        print(self.inst.query("CALRCL"))
         
     def cal_clear(self, channel, cal_type):
         NR1 = -1 # for "setting" calibration coefficients
@@ -376,6 +395,7 @@ class SPD3303X:
 
         self.inst.write(f"*CALCLS {NR1}")
         self.inst.write(f"*CALCLS {NR2}")
+        print(f"Cleared calibration with NR values of {NR1},{NR2}")
 
     def cal_clear_all(self):
         self.inst.write("*CALCLS 8")
