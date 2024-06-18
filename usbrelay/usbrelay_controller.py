@@ -110,7 +110,7 @@ class USBRelayController(object):
         config_file_path = "EEequipment/usbrelay/config.ini"
         if os.path.exists(config_file_path):
             self.read_relay_config(config_file_path)
-            self.print_relay_mappings()
+            # self.print_relay_mappings()
         else:
             print(f"Configuration file {config_file_path} does not exist.")
             raise BaseException

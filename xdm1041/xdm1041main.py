@@ -57,8 +57,8 @@ class XDM1041:
 
         self.logger.info("Serial port status:{}".format(self.serial.is_open))
 
-        self.set_mode(mode)
-        self.set_range(rng)
+        self.set_range_auto()
+        # self.set_range(rng)
 
     def connect(self):
         if self.serial and self.serial.is_open is False:
