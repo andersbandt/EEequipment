@@ -33,6 +33,7 @@ class SPD3303X:
     software_version = ""
     hardware_version = ""
 
+    # TODO: also put this into the Super class I'm making (another TODO on this
     def close(self):
         '''
         Close the socket connection
@@ -45,30 +46,35 @@ class SPD3303X:
         '''
         rm = pyvisa.ResourceManager()
         self.inst = rm.open_resource(instadd)
-        self.inst.write_termination='\n'
-        self.inst.read_termination='\n'
-        self.inst.timeout=4*1000
+        self.inst.write_termination = '\n'
+        self.inst.read_termination = '\n'
+        self.inst.timeout = 4*1000
+        # self.test_conn()
 
+    # TODO: refactor this whole thing so this method is part of some super class everything inherits from
+    def test_conn(self):
+        print("SPD3303X: issuing IDN? command")
         try:
-            self.__get_product_info()
+            idn = self.__get_product_info()
         except usb.core.USBError as e:
-            raise e
-            #print("CRITICAL ERROR: can't get IDN (probably timeout)")
-            #print("Closing old connection")
-            #self.inst.close()
-            #print("... trying once more ...")            
-            #self.inst = rm.open_resource(instadd)
-            #self.inst.write_termination='\n'
-            #self.inst.read_termination='\n'
-            #self.inst.timeout=4*1000
-            
+            print("USB operation to query instrument did not work!")
+            return False
+        print(f"IDN: {idn}")
+        return True
+
+    # put this in parent class also
+    def get_id(self):
+        try:
+            return self.__get_product_info()
+        except usb.core.USBError as e:
+            print("USB operation to get ID did not work!")
+            return False
 
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        print("SPD3303X: issuing IDN? command")
-        print(self.inst.query('*IDN?'))
+        return self.inst.query('*IDN?')
             
         # self.inst.write("*IDN?")
         # time.sleep(1)

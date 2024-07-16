@@ -46,6 +46,8 @@ base_ccs = config[os_name]["base_ccs"]
 
 base_project_path = config[os_name]["base_project_path"]
 
+
+# TODO: move the following to the config file for keeping everything similiar (also I often search this file first when looking for paths)
 base_tools_path = base_ccs + "ccs_base/common/uscif/"
 base_script_path = base_ccs + "ccs_base/scripting/"
 
