@@ -27,7 +27,7 @@ def xor(a, b):
 VENDOR_ID = 0x16C0
 PRODUCT_ID = 0x05DF
 
-NUM_RELAY = 8
+NUM_RELAY = 4 # TODO: make this somehow referenced in the `config.ini` file I have
 
 
 def find():
@@ -189,7 +189,7 @@ class USBRelayController(object):
             raise ValueError("'%s' is not a valid relay descriptor" % relay)
 
         relay_num, invert = convert()
-        if relay_num < 1 or relay_num > self.num_relays:
+        if relay_num < 1 or relay_num > self.num_relays: # TODO: this thing has no exception catch for un-initialized relay
             raise IndexError(
                 "Index %r is outside range [1..%d]" % (relay_num, self.num_relays)
             )
