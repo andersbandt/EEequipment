@@ -33,13 +33,6 @@ class SPD3303X:
     software_version = ""
     hardware_version = ""
 
-    # TODO: also put this into the Super class I'm making (another TODO on this
-    def close(self):
-        '''
-        Close the socket connection
-        '''
-        self.inst.close()
-
     def __init__(self, instadd):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
@@ -62,6 +55,13 @@ class SPD3303X:
         print(f"IDN: {idn}")
         return True
 
+    # TODO: also put this into the Super class I'm making (another TODO on this
+    def close(self):
+        '''
+        Close the socket connection
+        '''
+        self.inst.close()
+
     # put this in parent class also
     def get_id(self):
         try:
@@ -74,13 +74,14 @@ class SPD3303X:
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        return self.inst.query('*IDN?')
+        idn = self.inst.query('*IDN?')
+        return idn
             
         # self.inst.write("*IDN?")
         # time.sleep(1)
         # print("SPD3303X: reading...")
         # response = self.inst.read()
-        # print(str(response))
+        # return response
 
 #        resp_arr = response.split(",")
 #        self.manufacturer = resp_arr[0]
