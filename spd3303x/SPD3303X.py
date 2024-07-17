@@ -307,12 +307,43 @@ class SPD3303X:
         self.inst.write("SYSTem:VERSion?")
         return self.inst.read()
 
+    def _decode_hex(self, hex_value):
+        # Convert hex value to an integer
+        value = int(hex_value, 16)
+
+        # Dictionary to store decoded states
+        decoded_info = {}
+
+        # Decode each bit according to the given states
+        decoded_info["CH1 Mode"] = "CV" if not (value & 0x01) else "CC"
+        decoded_info["CH2 Mode"] = "CV" if not (value & 0x02) else "CC"
+
+        mode_bits = (value >> 2) & 0x03
+        if mode_bits == 0x01:
+            decoded_info["Channel Mode"] = "Independent"
+        elif mode_bits == 0x02:
+            decoded_info["Channel Mode"] = "Parallel"
+        else:
+            decoded_info["Channel Mode"] = "Unknown"
+
+        decoded_info["ch1_state"] = "OFF" if not (value & 0x10) else "ON"
+        decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
+
+        decoded_info["TIMER1"] = "OFF" if not (value & 0x40) else "ON"
+        decoded_info["TIMER2"] = "OFF" if not (value & 0x80) else "ON"
+
+        decoded_info["CH1 Display"] = "Digital" if not (value & 0x100) else "Waveform"
+        decoded_info["CH2 Display"] = "Digital" if not (value & 0x200) else "Waveform"
+
+        return decoded_info
+
     def check_status(self):
         '''
         Return the top level info about the power supply functional status
         '''
         self.inst.write("SYSTem:STATus?")
-        return self.inst.read()
+        hex_num = self.inst.read()
+        return self._decode_hex(hex_num)
 
     def assign_ip_addr(self, ip):
         '''
