@@ -4,6 +4,8 @@ import pyvisa
 import time
 import usb
 
+
+# TODO: figure out how to get rid of the "having to press connect twice" issue
 class SPD3303X:
     """
     Class for interacting with the SPD3303 Siglent Power Supply
@@ -53,7 +55,7 @@ class SPD3303X:
             print("USB operation to query instrument did not work!")
             return False
         print(f"IDN: {idn}")
-        return True
+        return idn
 
     # TODO: also put this into the Super class I'm making (another TODO on this
     def close(self):
@@ -63,12 +65,12 @@ class SPD3303X:
         self.inst.close()
 
     # put this in parent class also
-    def get_id(self):
-        try:
-            return self.__get_product_info()
-        except usb.core.USBError as e:
-            print("USB operation to get ID did not work!")
-            return False
+    # def get_id(self):
+    #     try:
+    #         return self.__get_product_info()
+    #     except usb.core.USBError as e:
+    #         print("USB operation to get ID did not work!")
+    #         return False
 
     def __get_product_info(self):
         '''
@@ -206,7 +208,7 @@ class SPD3303X:
         '''
         Turn on the channel output
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},ON")
@@ -215,7 +217,7 @@ class SPD3303X:
         '''
         Turn off the channel output
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},OFF")
@@ -230,7 +232,7 @@ class SPD3303X:
         '''
         Turn on the Waveform Display function of specified channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"OUTPut:WAVE CH{channel},ON")
@@ -248,7 +250,7 @@ class SPD3303X:
         '''
         Set the timing parameters of specified channel, group setting the voltage current and execution time
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
@@ -257,7 +259,7 @@ class SPD3303X:
         '''
         Query for the voltage/current/time parameters of specified group of specific channels
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET? CH{channel},{group}")
@@ -267,7 +269,7 @@ class SPD3303X:
 
     def turn_on_timer(self, channel):
         '''
-        Turn on timer fuction of specific channel
+        Turn on timer function of specific channel
         '''
         if channel not in range(1,self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')

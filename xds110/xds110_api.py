@@ -124,9 +124,12 @@ def get_xds110_status():
 #########################
 
 def flash_firmware(config_type):
+    # TODO: move these also to a config file?
     if config_type == "target_power":
         config_file = "/targetConfigs/CC2642R1F.ccxml"
     elif config_type == "probe_power":
+        config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
+    elif config_type == "supply_power":
         config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
     else:
         print(f"Trying config {config_type}")
