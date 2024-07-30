@@ -315,25 +315,25 @@ class SPD3303X:
         decoded_info = {}
 
         # Decode each bit according to the given states
-        decoded_info["CH1 Mode"] = "CV" if not (value & 0x01) else "CC"
-        decoded_info["CH2 Mode"] = "CV" if not (value & 0x02) else "CC"
+        decoded_info["ch1_mode"] = "CV" if not (value & 0x01) else "CC"
+        decoded_info["ch2_mode"] = "CV" if not (value & 0x02) else "CC"
 
         mode_bits = (value >> 2) & 0x03
         if mode_bits == 0x01:
-            decoded_info["Channel Mode"] = "Independent"
+            decoded_info["channel_mode"] = "Independent"
         elif mode_bits == 0x02:
-            decoded_info["Channel Mode"] = "Parallel"
+            decoded_info["channel_mode"] = "Parallel"
         else:
-            decoded_info["Channel Mode"] = "Unknown"
+            decoded_info["channel_mode"] = "Unknown"
 
         decoded_info["ch1_state"] = "OFF" if not (value & 0x10) else "ON"
         decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
 
-        decoded_info["TIMER1"] = "OFF" if not (value & 0x40) else "ON"
-        decoded_info["TIMER2"] = "OFF" if not (value & 0x80) else "ON"
+        decoded_info["timer1"] = "OFF" if not (value & 0x40) else "ON"
+        decoded_info["timer22"] = "OFF" if not (value & 0x80) else "ON"
 
-        decoded_info["CH1 Display"] = "Digital" if not (value & 0x100) else "Waveform"
-        decoded_info["CH2 Display"] = "Digital" if not (value & 0x200) else "Waveform"
+        decoded_info["ch1_display"] = "Digital" if not (value & 0x100) else "Waveform"
+        decoded_info["ch2_display"] = "Digital" if not (value & 0x200) else "Waveform"
 
         return decoded_info
 
