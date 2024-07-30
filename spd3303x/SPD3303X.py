@@ -4,6 +4,8 @@ import pyvisa
 import time
 import usb
 
+
+# TODO: figure out how to get rid of the "having to press connect twice" issue
 class SPD3303X:
     """
     Class for interacting with the SPD3303 Siglent Power Supply
@@ -33,13 +35,6 @@ class SPD3303X:
     software_version = ""
     hardware_version = ""
 
-    # TODO: also put this into the Super class I'm making (another TODO on this
-    def close(self):
-        '''
-        Close the socket connection
-        '''
-        self.inst.close()
-
     def __init__(self, instadd):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
@@ -60,27 +55,35 @@ class SPD3303X:
             print("USB operation to query instrument did not work!")
             return False
         print(f"IDN: {idn}")
-        return True
+        return idn
+
+    # TODO: also put this into the Super class I'm making (another TODO on this
+    def close(self):
+        '''
+        Close the socket connection
+        '''
+        self.inst.close()
 
     # put this in parent class also
-    def get_id(self):
-        try:
-            return self.__get_product_info()
-        except usb.core.USBError as e:
-            print("USB operation to get ID did not work!")
-            return False
+    # def get_id(self):
+    #     try:
+    #         return self.__get_product_info()
+    #     except usb.core.USBError as e:
+    #         print("USB operation to get ID did not work!")
+    #         return False
 
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        return self.inst.query('*IDN?')
+        idn = self.inst.query('*IDN?')
+        return idn
             
         # self.inst.write("*IDN?")
         # time.sleep(1)
         # print("SPD3303X: reading...")
         # response = self.inst.read()
-        # print(str(response))
+        # return response
 
 #        resp_arr = response.split(",")
 #        self.manufacturer = resp_arr[0]
@@ -205,7 +208,7 @@ class SPD3303X:
         '''
         Turn on the channel output
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},ON")
@@ -214,7 +217,7 @@ class SPD3303X:
         '''
         Turn off the channel output
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},OFF")
@@ -229,7 +232,7 @@ class SPD3303X:
         '''
         Turn on the Waveform Display function of specified channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"OUTPut:WAVE CH{channel},ON")
@@ -247,7 +250,7 @@ class SPD3303X:
         '''
         Set the timing parameters of specified channel, group setting the voltage current and execution time
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
@@ -256,7 +259,7 @@ class SPD3303X:
         '''
         Query for the voltage/current/time parameters of specified group of specific channels
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET? CH{channel},{group}")
@@ -266,7 +269,7 @@ class SPD3303X:
 
     def turn_on_timer(self, channel):
         '''
-        Turn on timer fuction of specific channel
+        Turn on timer function of specific channel
         '''
         if channel not in range(1,self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
@@ -304,12 +307,43 @@ class SPD3303X:
         self.inst.write("SYSTem:VERSion?")
         return self.inst.read()
 
+    def _decode_hex(self, hex_value):
+        # Convert hex value to an integer
+        value = int(hex_value, 16)
+
+        # Dictionary to store decoded states
+        decoded_info = {}
+
+        # Decode each bit according to the given states
+        decoded_info["ch1_mode"] = "CV" if not (value & 0x01) else "CC"
+        decoded_info["ch2_mode"] = "CV" if not (value & 0x02) else "CC"
+
+        mode_bits = (value >> 2) & 0x03
+        if mode_bits == 0x01:
+            decoded_info["channel_mode"] = "Independent"
+        elif mode_bits == 0x02:
+            decoded_info["channel_mode"] = "Parallel"
+        else:
+            decoded_info["channel_mode"] = "Unknown"
+
+        decoded_info["ch1_state"] = "OFF" if not (value & 0x10) else "ON"
+        decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
+
+        decoded_info["timer1"] = "OFF" if not (value & 0x40) else "ON"
+        decoded_info["timer22"] = "OFF" if not (value & 0x80) else "ON"
+
+        decoded_info["ch1_display"] = "Digital" if not (value & 0x100) else "Waveform"
+        decoded_info["ch2_display"] = "Digital" if not (value & 0x200) else "Waveform"
+
+        return decoded_info
+
     def check_status(self):
         '''
         Return the top level info about the power supply functional status
         '''
         self.inst.write("SYSTem:STATus?")
-        return self.inst.read()
+        hex_num = self.inst.read()
+        return self._decode_hex(hex_num)
 
     def assign_ip_addr(self, ip):
         '''
