@@ -123,6 +123,7 @@ def get_xds110_status():
 #### CCS BIN ############
 #########################
 
+# TODO: this thing doesn't properly detect success. Just read for "Done;Target running;Board Reset Complete" (instead of just parsing if there is STDERROR output)
 def flash_firmware(config_type):
     # TODO: move these also to a config file?
     if config_type == "target_power":
