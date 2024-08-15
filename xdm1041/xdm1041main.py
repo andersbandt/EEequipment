@@ -114,8 +114,11 @@ class XDM1041:
         self.send_cmd(cmd)
         time.sleep(0.2)
         manuf_info = self.read_result()
-        str_to_k = manuf_info.split(',')
-        print(str_to_k)
+        try:
+            str_to_k = manuf_info.split(',')
+            print(str_to_k)
+        except TypeError:
+            print(f"ERROR: went wrong splitting byte (likely got str): {manuf_info}")
         return manuf_info
 
     def send_cmd(self, cmd: str):
