@@ -42,16 +42,9 @@ else:
 
 # read in parameters from the config file
 base_ccs = config[os_name]["base_ccs"]
-# base_ccs = config.get(os_name, "base_ccs")
-
 base_project_path = config[os_name]["base_project_path"]
-
-
-# TODO: move the following to the config file for keeping everything similiar (also I often search this file first when looking for paths)
-base_tools_path = base_ccs + "ccs_base/common/uscif/"
-base_script_path = base_ccs + "ccs_base/scripting/"
-
-
+base_tools_path = config[os_name]["base_tools_path"]
+base_script_path = config[os_name]["base_script_path"]
 xds110_reset_cmd = config[os_name]["xds110_reset_cmd"]
 xds110_jtag_cmd = config[os_name]["xds110_jtag_cmd"]
 xds110_xds_cmd = config[os_name]["xds110_xds_cmd"]
@@ -123,15 +116,15 @@ def get_xds110_status():
 #### CCS BIN ############
 #########################
 
-# TODO: this thing doesn't properly detect success. Just read for "Done;Target running;Board Reset Complete" (instead of just parsing if there is STDERROR output)
-def flash_firmware(config_type):
+
+def flash_firmware(config_type, serial_number):
     # TODO: move these also to a config file?
     if config_type == "target_power":
-        config_file = "/targetConfigs/CC2642R1F.ccxml"
+        config_file = f"/targetConfigs/CC2642R1F_{serial_number}.ccxml"
     elif config_type == "probe_power":
         config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
     elif config_type == "supply_power":
-        config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
+        config_file = f"/targetConfigs/CC2642R1F_{serial_number}.ccxml"
     else:
         print(f"Trying config {config_type}")
         raise XDS110Exception("Bad target config type!")
@@ -149,6 +142,10 @@ def flash_firmware(config_type):
         "Error",
         "An attempt to connect to the XDS110 failed"
     ]
+
+    if "Target_running" in packet.stdout:
+        return [True, packet]
+
     for error_key in error_words:
         if error_key in packet.stdout:
             return [False, packet]
