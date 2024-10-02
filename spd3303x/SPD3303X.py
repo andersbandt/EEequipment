@@ -1,12 +1,15 @@
 
-#from SCPI import SCPI
+
+# import needed modules
 import pyvisa
-import time
 import usb
+
+# import Equipment parent class
+from EEequipment import Equipment
 
 
 # TODO: figure out how to get rid of the "having to press connect twice" issue
-class SPD3303X:
+class SPD3303X(Equipment):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
@@ -40,71 +43,58 @@ class SPD3303X:
         Init the VISA (pyvisa) connection and get the basic product info
         '''
         rm = pyvisa.ResourceManager()
-        self.inst = rm.open_resource(instadd)
+        try:
+            self.inst = rm.open_resource(instadd)
+        except usb.core.USBError:
+            pass
         self.inst.write_termination = '\n'
         self.inst.read_termination = '\n'
         self.inst.timeout = 4*1000
-        # self.test_conn()
 
-    # TODO: refactor this whole thing so this method is part of some super class everything inherits from
     def test_conn(self):
         print("SPD3303X: issuing IDN? command")
         try:
             idn = self.__get_product_info()
-        except usb.core.USBError as e:
+        except usb.core.USBError:
             print("USB operation to query instrument did not work!")
             return False
         print(f"IDN: {idn}")
         return idn
 
-    # TODO: also put this into the Super class I'm making (another TODO on this
     def close(self):
         '''
         Close the socket connection
         '''
         self.inst.close()
 
-    # put this in parent class also
-    # def get_id(self):
-    #     try:
-    #         return self.__get_product_info()
-    #     except usb.core.USBError as e:
-    #         print("USB operation to get ID did not work!")
-    #         return False
-
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
         idn = self.inst.query('*IDN?')
-        return idn
-            
         # self.inst.write("*IDN?")
-        # time.sleep(1)
-        # print("SPD3303X: reading...")
-        # response = self.inst.read()
-        # return response
+        # idn = self.inst.read()
 
-#        resp_arr = response.split(",")
-#        self.manufacturer = resp_arr[0]
-#        self.product_type = resp_arr[1]
-#        self.series_number = resp_arr[2]
-#        self.software_version = resp_arr[3]
-#        self.hardware_version = resp_arr[4]
+        resp_arr = idn.split(",")
+        self.manufacturer = resp_arr[0]
+        self.product_type = resp_arr[1]
+        self.series_number = resp_arr[2]
+        self.software_version = resp_arr[3]
+        self.hardware_version = resp_arr[4]
+        return idn
 
     def __send_cmd(self, cmd):
         '''
         Generic call to send command with error checking
         '''
         self.inst.write(cmd)
-        # Check for an error in regards to that command
         self.check_error()
 
     def save(self, file_num):
         '''
         Save the current state into non-volatile memory
         '''
-        if file_num not in range(1,self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count+1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*SAV {file_num}")
@@ -113,7 +103,7 @@ class SPD3303X:
         '''
         Recall state that had been saved from nonvolatile memory
         '''
-        if file_num not in range(1,self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count+1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*RCL {file_num}")
@@ -122,7 +112,7 @@ class SPD3303X:
         '''
         Select the channel to be operated on
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"INSTrument CH{channel}")
@@ -190,8 +180,12 @@ class SPD3303X:
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
-            offset = 0.19637500000000008
-            slope = -0.029375000000000016
+            if channel == 1:
+                offset = 0.19637500000000008
+                slope = -0.029375000000000016
+            elif channel == 2:
+                offset = 0.5858333333333332
+                slope = -0.00863333333333329
             cal_value = round(value + value*slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
     

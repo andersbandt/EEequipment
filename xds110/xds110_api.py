@@ -5,7 +5,6 @@
 @brief    control the XDS110
 """
 
-
 # import needed modules
 import os
 import platform
@@ -24,14 +23,7 @@ if os_name != "Windows" and os_name != "Linux":
 
 
 # initialize the config parser
-# set relay mapping / configuration
 config_file_path = "./EEequipment/xds110/config.ini"
-# if os_name == "Windows":
-#     config_file_path = "C:/Users/ander/Documents/GitHub/wwd_gui_api/EEequipment/xds110/config.ini"
-# elif os_name == "Linux":
-#     config_file_path = "./EEequipment/xds110/config.ini"
-
-
 if os.path.exists(config_file_path):
     config = configparser.ConfigParser()
     config.read(config_file_path)
@@ -50,19 +42,6 @@ xds110_jtag_cmd = config[os_name]["xds110_jtag_cmd"]
 xds110_xds_cmd = config[os_name]["xds110_xds_cmd"]
 gmake_cmd = base_ccs + config[os_name]["gmake_cmd"]
 load_cmd = base_script_path + config[os_name]["load_cmd"]
-
-
-# Debug output to check if paths are set correctly
-print(f"base_ccs: {base_ccs}")
-print(f"base_project_path: {base_project_path}")
-print(f"base_tools_path: {base_tools_path}")
-print(f"base_script_path: {base_script_path}")
-print(f"xds110_reset_cmd: {xds110_reset_cmd}")
-print(f"xds110_jtag_cmd: {xds110_jtag_cmd}")
-print(f"xds110_xds_cmd: {xds110_xds_cmd}")
-print(f"gmake_cmd: {gmake_cmd}")
-print(f"load_cmd: {load_cmd}")
-
 
 
 class XDS110Exception(Exception):
@@ -120,11 +99,11 @@ def get_xds110_status():
 def flash_firmware(config_type, serial_number):
     # TODO: move these also to a config file?
     if config_type == "target_power":
-        config_file = f"/targetConfigs/CC2642R1F_{serial_number}.ccxml"
+        config_file = f"/targetConfigs/CC2642R1F2_{serial_number}.ccxml"
     elif config_type == "probe_power":
         config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
     elif config_type == "supply_power":
-        config_file = f"/targetConfigs/CC2642R1F_{serial_number}.ccxml"
+        config_file = f"/targetConfigs/CC2642R1F2_{serial_number}.ccxml"
     else:
         print(f"Trying config {config_type}")
         raise XDS110Exception("Bad target config type!")
