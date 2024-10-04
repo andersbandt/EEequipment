@@ -5,7 +5,7 @@ import pyvisa
 import usb
 
 # import Equipment parent class
-from EEequipment import Equipment
+from EEequipment.Equipment import Equipment
 
 
 # TODO: figure out how to get rid of the "having to press connect twice" issue
@@ -46,10 +46,10 @@ class SPD3303X(Equipment):
         try:
             self.inst = rm.open_resource(instadd)
         except usb.core.USBError:
-            pass
+            return
         self.inst.write_termination = '\n'
         self.inst.read_termination = '\n'
-        self.inst.timeout = 4*1000
+        self.inst.timeout = 2*1000  # NOTE: used to be 4 seconds
 
     def test_conn(self):
         print("SPD3303X: issuing IDN? command")
@@ -72,15 +72,14 @@ class SPD3303X(Equipment):
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
         idn = self.inst.query('*IDN?')
-        # self.inst.write("*IDN?")
-        # idn = self.inst.read()
 
-        resp_arr = idn.split(",")
-        self.manufacturer = resp_arr[0]
-        self.product_type = resp_arr[1]
-        self.series_number = resp_arr[2]
-        self.software_version = resp_arr[3]
-        self.hardware_version = resp_arr[4]
+        # NOTE: can't uncomment below code because my equipment simply returns 'Siglent Techno' from query
+        # resp_arr = idn.split(",")
+        # self.manufacturer = resp_arr[0]
+        # self.product_type = resp_arr[1]
+        # self.series_number = resp_arr[2]
+        # self.software_version = resp_arr[3]
+        # self.hardware_version = resp_arr[4]
         return idn
 
     def __send_cmd(self, cmd):
@@ -184,8 +183,8 @@ class SPD3303X(Equipment):
                 offset = 0.19637500000000008
                 slope = -0.029375000000000016
             elif channel == 2:
-                offset = 0.5858333333333332
-                slope = -0.00863333333333329
+                offset = 0.24129166666666663
+                slope = -0.032891666666666645
             cal_value = round(value + value*slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
     
