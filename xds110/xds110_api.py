@@ -122,9 +122,11 @@ def flash_firmware(config_type, serial_number):
         "An attempt to connect to the XDS110 failed"
     ]
 
-    if "Target_running" in packet.stdout:
+    # hack manual parse based on returned message content
+    if "Target running" in packet.stdout:
         return [True, packet]
 
+    # return error status based on errors in stdout OR stderr
     for error_key in error_words:
         if error_key in packet.stdout:
             return [False, packet]
