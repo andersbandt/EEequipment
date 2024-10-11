@@ -2,7 +2,9 @@
 
 # import needed modules
 import pyvisa
+from pyvisa import ResourceManager
 import usb
+
 
 # import Equipment parent class
 from EEequipment.Equipment import Equipment
@@ -42,7 +44,13 @@ class SPD3303X(Equipment):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        rm = pyvisa.ResourceManager()
+        # set up the ResourceManager
+        try:
+            rm = ResourceManager('@py')  # use 'pyvisa-py' backend
+        except ValueError:
+            rm = ResourceManager()
+
+        # attempt to open instance
         try:
             self.inst = rm.open_resource(instadd)
         except usb.core.USBError:
@@ -208,7 +216,7 @@ class SPD3303X(Equipment):
 
     def output_off(self, channel):
         '''
-        Turn off the channel output
+        Turn off the channel outputdo
         '''
         if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
