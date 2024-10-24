@@ -376,6 +376,11 @@ class SPD3303X:
         print(cmd)
         self.inst.write(cmd)
 
+    def cal_current(self, channel, point, actual_i):
+        cmd = f"CAL:CURR CH{channel},{point},{actual_i}"
+        print(cmd)
+        self.inst.write(cmd)
+
     def cal_recall(self):
         cmd = "*CALRCL"
         print(f"SPD3303X: querying {cmd}")
