@@ -114,8 +114,11 @@ class XDM1041:
         self.send_cmd(cmd)
         time.sleep(0.2)
         manuf_info = self.read_result()
-        str_to_k = manuf_info.split(',')
-        print(str_to_k)
+        try:
+            str_to_k = manuf_info.split(',')
+            print(str_to_k)
+        except TypeError:
+            print(f"ERROR: went wrong splitting byte (likely got str): {manuf_info}")
         return manuf_info
 
     def send_cmd(self, cmd: str):
@@ -130,6 +133,10 @@ class XDM1041:
         just read a line and return
         """
         ret_str = self.serial.readline()
+        try:
+            ret_str.decode()
+        except UnicodeDecodeError as e:
+            return ret_str
         return ret_str.decode()
 
     def read_val1_raw(self):
@@ -173,6 +180,9 @@ class XDM1041:
     def set_mode(self, mode: XDM1041Mode):
         cmd = str(mode)
         self.send_cmd(cmd)
+
+    def set_mode_dcv(self):
+        self.set_mode(XDM1041Mode.MODE_VOLTAGE_DC)
 
     def set_sample_speed_slow(self):
         cmd = str(XDM1041Cmd.RATE_S)

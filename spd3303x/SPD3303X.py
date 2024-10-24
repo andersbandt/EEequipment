@@ -1,10 +1,17 @@
 
-#from SCPI import SCPI
+
+# import needed modules
 import pyvisa
-import time
+from pyvisa import ResourceManager
 import usb
 
-class SPD3303X:
+
+# import Equipment parent class
+from EEequipment.Equipment import Equipment
+
+
+# TODO: figure out how to get rid of the "having to press connect twice" issue
+class SPD3303X(Equipment):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
@@ -33,75 +40,68 @@ class SPD3303X:
     software_version = ""
     hardware_version = ""
 
-    # TODO: also put this into the Super class I'm making (another TODO on this
+    def __init__(self, instadd):
+        '''
+        Init the VISA (pyvisa) connection and get the basic product info
+        '''
+        # set up the ResourceManager
+        try:
+            rm = ResourceManager('@py')  # use 'pyvisa-py' backend
+        except ValueError:
+            rm = ResourceManager()
+
+        # attempt to open instance
+        try:
+            self.inst = rm.open_resource(instadd)
+        except usb.core.USBError:
+            return
+        self.inst.write_termination = '\n'
+        self.inst.read_termination = '\n'
+        self.inst.timeout = 2*1000  # NOTE: used to be 4 seconds
+
+    def test_conn(self):
+        print("SPD3303X: issuing IDN? command")
+        try:
+            idn = self.__get_product_info()
+        except usb.core.USBError:
+            print("USB operation to query instrument did not work!")
+            return False
+        print(f"IDN: {idn}")
+        return idn
+
     def close(self):
         '''
         Close the socket connection
         '''
         self.inst.close()
 
-    def __init__(self, instadd):
-        '''
-        Init the VISA (pyvisa) connection and get the basic product info
-        '''
-        rm = pyvisa.ResourceManager()
-        self.inst = rm.open_resource(instadd)
-        self.inst.write_termination = '\n'
-        self.inst.read_termination = '\n'
-        self.inst.timeout = 4*1000
-        # self.test_conn()
-
-    # TODO: refactor this whole thing so this method is part of some super class everything inherits from
-    def test_conn(self):
-        print("SPD3303X: issuing IDN? command")
-        try:
-            idn = self.__get_product_info()
-        except usb.core.USBError as e:
-            print("USB operation to query instrument did not work!")
-            return False
-        print(f"IDN: {idn}")
-        return True
-
-    # put this in parent class also
-    def get_id(self):
-        try:
-            return self.__get_product_info()
-        except usb.core.USBError as e:
-            print("USB operation to get ID did not work!")
-            return False
-
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        return self.inst.query('*IDN?')
-            
-        # self.inst.write("*IDN?")
-        # time.sleep(1)
-        # print("SPD3303X: reading...")
-        # response = self.inst.read()
-        # print(str(response))
+        idn = self.inst.query('*IDN?')
 
-#        resp_arr = response.split(",")
-#        self.manufacturer = resp_arr[0]
-#        self.product_type = resp_arr[1]
-#        self.series_number = resp_arr[2]
-#        self.software_version = resp_arr[3]
-#        self.hardware_version = resp_arr[4]
+        # NOTE: can't uncomment below code because my equipment simply returns 'Siglent Techno' from query
+        # resp_arr = idn.split(",")
+        # self.manufacturer = resp_arr[0]
+        # self.product_type = resp_arr[1]
+        # self.series_number = resp_arr[2]
+        # self.software_version = resp_arr[3]
+        # self.hardware_version = resp_arr[4]
+        return idn
 
     def __send_cmd(self, cmd):
         '''
         Generic call to send command with error checking
         '''
         self.inst.write(cmd)
-        # Check for an error in regards to that command
         self.check_error()
 
     def save(self, file_num):
         '''
         Save the current state into non-volatile memory
         '''
-        if file_num not in range(1,self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count+1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*SAV {file_num}")
@@ -110,7 +110,7 @@ class SPD3303X:
         '''
         Recall state that had been saved from nonvolatile memory
         '''
-        if file_num not in range(1,self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count+1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*RCL {file_num}")
@@ -119,7 +119,7 @@ class SPD3303X:
         '''
         Select the channel to be operated on
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"INSTrument CH{channel}")
@@ -187,8 +187,12 @@ class SPD3303X:
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
-            offset = 0.19637500000000008
-            slope = -0.029375000000000016
+            if channel == 1:
+                offset = 0.19637500000000008
+                slope = -0.029375000000000016
+            elif channel == 2:
+                offset = 0.24129166666666663
+                slope = -0.032891666666666645
             cal_value = round(value + value*slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
     
@@ -205,16 +209,16 @@ class SPD3303X:
         '''
         Turn on the channel output
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},ON")
 
     def output_off(self, channel):
         '''
-        Turn off the channel output
+        Turn off the channel outputdo
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},OFF")
@@ -229,7 +233,7 @@ class SPD3303X:
         '''
         Turn on the Waveform Display function of specified channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"OUTPut:WAVE CH{channel},ON")
@@ -247,7 +251,7 @@ class SPD3303X:
         '''
         Set the timing parameters of specified channel, group setting the voltage current and execution time
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
@@ -256,7 +260,7 @@ class SPD3303X:
         '''
         Query for the voltage/current/time parameters of specified group of specific channels
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET? CH{channel},{group}")
@@ -266,7 +270,7 @@ class SPD3303X:
 
     def turn_on_timer(self, channel):
         '''
-        Turn on timer fuction of specific channel
+        Turn on timer function of specific channel
         '''
         if channel not in range(1,self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
@@ -304,12 +308,43 @@ class SPD3303X:
         self.inst.write("SYSTem:VERSion?")
         return self.inst.read()
 
+    def _decode_hex(self, hex_value):
+        # Convert hex value to an integer
+        value = int(hex_value, 16)
+
+        # Dictionary to store decoded states
+        decoded_info = {}
+
+        # Decode each bit according to the given states
+        decoded_info["ch1_mode"] = "CV" if not (value & 0x01) else "CC"
+        decoded_info["ch2_mode"] = "CV" if not (value & 0x02) else "CC"
+
+        mode_bits = (value >> 2) & 0x03
+        if mode_bits == 0x01:
+            decoded_info["channel_mode"] = "Independent"
+        elif mode_bits == 0x02:
+            decoded_info["channel_mode"] = "Parallel"
+        else:
+            decoded_info["channel_mode"] = "Unknown"
+
+        decoded_info["ch1_state"] = "OFF" if not (value & 0x10) else "ON"
+        decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
+
+        decoded_info["timer1"] = "OFF" if not (value & 0x40) else "ON"
+        decoded_info["timer22"] = "OFF" if not (value & 0x80) else "ON"
+
+        decoded_info["ch1_display"] = "Digital" if not (value & 0x100) else "Waveform"
+        decoded_info["ch2_display"] = "Digital" if not (value & 0x200) else "Waveform"
+
+        return decoded_info
+
     def check_status(self):
         '''
         Return the top level info about the power supply functional status
         '''
         self.inst.write("SYSTem:STATus?")
-        return self.inst.read()
+        hex_num = self.inst.read()
+        return self._decode_hex(hex_num)
 
     def assign_ip_addr(self, ip):
         '''
