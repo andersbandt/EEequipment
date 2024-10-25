@@ -53,8 +53,10 @@ class SPD3303X(Equipment):
         # attempt to open instance
         try:
             self.inst = rm.open_resource(instadd)
-        except usb.core.USBError:
-            return
+        except usb.core.USBError as e:
+            print("Error with opening SPD3303X")
+            print(e)
+            self.inst = None
         self.inst.write_termination = '\n'
         self.inst.read_termination = '\n'
         self.inst.timeout = 2*1000  # NOTE: used to be 4 seconds
@@ -138,8 +140,7 @@ class SPD3303X(Equipment):
         if channel not in range(1,self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"MEASure:CURRent? CH{channel}")
-            return float(self.inst.read())
+            return float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
 
     def get_voltage(self, channel):
         '''
