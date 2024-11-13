@@ -1,5 +1,8 @@
-
-
+"""
+@file     xdm1041main.py
+@author   Anders Bandt
+@brief    Python class for managing data with a serial connection
+"""
 
 # import modules
 import logging
@@ -7,11 +10,12 @@ import serial
 import time
 
 # import user created modules
+from EEequipment.Equipment import Equipment
 from EEequipment.xdm1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
 from EEequipment.xdm1041 import xdm1041helper
 
 
-class XDM1041:
+class XDM1041(Equipment):
     rng_dcv = {1: "50mV", 2: "500mV", 3: "5V", 4: "50V", 5: "500V", 6: "1000V"}
     rng_acv = {1: "500mV", 2: "5V", 3: "50V", 4: "500V", 5: "750V"}
     rng_dci = {1: "500uA", 2: "5mA", 3: "50mA", 4: "500mA", 5: "5A", 6: "10A"}
@@ -39,11 +43,9 @@ class XDM1041:
                 print("{}:{} ".format(key, value), end='')
             print('')
 
-    def __init__(self, serial_device, mode: XDM1041Mode, rng: int = 0):
-
+    def __init__(self, serial_device, mode: XDM1041Mode):
+        super().__init__()
         self.mode = mode
-        self.logger = logging.getLogger(__name__)
-
         self.serial = serial.Serial(
             port=serial_device,
             baudrate=115200,
@@ -52,13 +54,12 @@ class XDM1041:
             stopbits=serial.STOPBITS_ONE,
             timeout=0.5,
             xonxoff=False,
-            writeTimeout=0.5
+            write_timeout=0.5
         )
 
+        self.logger = logging.getLogger(__name__) # TODO: understand this logger thing
         self.logger.info("Serial port status:{}".format(self.serial.is_open))
-
         self.set_range_auto()
-        # self.set_range(rng)
 
     def connect(self):
         if self.serial and self.serial.is_open is False:
@@ -96,19 +97,16 @@ class XDM1041:
         print(f"\tsetting DMM range with cmd: {cmd}")
         self.send_cmd(cmd)
 
-        
     def set_range_auto(self):
         cmd = str(XDM1041Cmd.SET_AUTO_MODE)
         self.send_cmd(cmd)
-
 
     def get_range_auto(self):
         cmd = str(XDM1041Cmd.GET_AUTO_MODE)
         self.send_cmd(cmd)
         result = self.read_result()
         return result
-        
-        
+
     def test_conn(self):
         cmd = str(XDM1041Cmd.IDN)
         self.send_cmd(cmd)
@@ -233,7 +231,6 @@ class XDM1041:
         result = self.read_result()
         result = float(result)
         return result
-
 
     def read_voltage(self):
         self.set_mode(XDM1041Mode.MODE_VOLTAGE_DC)
