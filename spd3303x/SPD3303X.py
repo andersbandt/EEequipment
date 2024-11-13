@@ -5,7 +5,6 @@ import pyvisa
 from pyvisa import ResourceManager
 import usb
 
-
 # import Equipment parent class
 from EEequipment.Equipment import Equipment
 
@@ -15,7 +14,6 @@ class SPD3303X(Equipment):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
-
     class SPD3303Exception(Exception):
         '''
         Exception raised when a call returns an error message
@@ -126,6 +124,9 @@ class SPD3303X(Equipment):
         else:
             self.inst.write(f"INSTrument CH{channel}")
 
+##################################
+#### get/set functions  ##########
+##################################
     def get_active_channel(self):
         '''
         Query for the active channel
@@ -166,7 +167,7 @@ class SPD3303X(Equipment):
         '''
         Set the current value for the selected channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"CH{channel}:CURRent {value}")
@@ -206,6 +207,9 @@ class SPD3303X(Equipment):
         else:
             self.inst.write(f"CH{channel}:VOLTage?")
 
+##################################
+#### control functions  ##########
+##################################
     def output_on(self, channel):
         '''
         Turn on the channel output
@@ -287,6 +291,9 @@ class SPD3303X(Equipment):
         else:
             self.inst.write(f"TIMEr CH{channel},OFF")
 
+##################################
+#### etc functions  ##############
+##################################
     def check_error(self):
         '''
         Check for an error on the system
@@ -347,6 +354,9 @@ class SPD3303X(Equipment):
         hex_num = self.inst.read()
         return self._decode_hex(hex_num)
 
+##################################
+#### networking functions  #######
+##################################
     def assign_ip_addr(self, ip):
         '''
         Assign a static Internet Protocol (IP) address for the instrument
@@ -382,7 +392,7 @@ class SPD3303X(Equipment):
         '''
         self.__send_cmd(f"GATEaddr {gate_addr}")
 
-    def query_subnet_mask(self):
+    def query_gate_address(self):
         '''
         Query the gate address for the instrument
         WARING: This command is invalid when DHCP is on
@@ -406,6 +416,9 @@ class SPD3303X(Equipment):
         self.inst.write(f"DHCP?")
         return self.inst.read()
 
+##################################
+#### calibration functions  ######
+##################################
     def cal_voltage(self, channel, point, actual_v):
         #cmd = f"CAL:VOLT ch{channel},{point},{actual_v}"
         cmd = f"CALibration:VOLTage CH{channel},{point},{actual_v}"
@@ -450,5 +463,3 @@ class SPD3303X(Equipment):
     def cal_save(self):
         self.inst.write("*CALST")
 
-        
-            
