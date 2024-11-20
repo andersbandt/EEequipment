@@ -6,8 +6,6 @@ import array
 import os
 import usb.core
 import usb.util
-# import xdg
-# import yaml
 import configparser
 
 USB_TYPE_CLASS = 0x20
@@ -27,15 +25,13 @@ def xor(a, b):
 VENDOR_ID = 0x16C0
 PRODUCT_ID = 0x05DF
 
-NUM_RELAY = 4 # TODO: make this somehow referenced in the `config.ini` file I have
+
 
 
 def find():
     def _get_backend():
         import os
-
         if os.name != "nt":
-            print("OS is sufficent. Not bothering with finding libusb")
             return None
 
         import usb.backend.libusb1
@@ -53,13 +49,10 @@ def find():
             product = usb.util.get_string(device, device.iProduct)
             if manufacturer != "www.dcttech.com":
                 return False
-
             if not product.startswith("USBRelay"):
                 return False
-
             return True
 
-    # device = usb.core.find(idVendor=vendor_id, idProduct=product_id)
     devices = usb.core.find(
         backend=_get_backend(),
         find_all=False,
@@ -82,9 +75,6 @@ def find():
 # status bit: High --> Low 0000 0000 0000 0000 0000 0000 0000 0000, one bit indicate a relay status.
 # the lowest bit 0 indicate relay one status, 1 -- means open status, 0 -- means closed status.
 # bit 0/1/2/3/4/5/6/7/8 indicate relay 1/2/3/4/5/6/7/8 status
-# @returns: 0 -- success; 1 -- error
-# def get_status_relay():
-#     pass
 
 
 class USBRelayController(object):
@@ -94,7 +84,7 @@ class USBRelayController(object):
 
         if self.device is not None:
             self.product = usb.util.get_string(device, device.iProduct)
-            self.num_relays = int(self.product[8:])
+            self.num_relays = int(self.product[8:]) # TODO: why am I not using this everywhere? What's with the NUM_RELAY constant I had to define?
             self._update_status()
             self.status = True
         else:
@@ -110,22 +100,27 @@ class USBRelayController(object):
         config_file_path = "EEequipment/usbrelay/config.ini"
         if os.path.exists(config_file_path):
             self.read_relay_config(config_file_path)
-            # self.print_relay_mappings()
         else:
             print(f"Configuration file {config_file_path} does not exist.")
             raise BaseException
 
-    # TODO: really understand the following code. Why is there a for loop? Can I just not read every channel instance?
+        # set startup on/off states based on config file
+        for i in range(1, self.num_relays + 1):
+            if self.relay_mapping[f'startup_{i}'] == "ON":
+                self.set_state(i, 1)
+
     def read_relay_config(self, config_file):
         config = configparser.ConfigParser()
         config.read(config_file)
 
-        for i in range(1, 9):
+        for i in range(1, self.num_relays + 1):
             channel_key = f'channel_{i}'
             if config.has_option('RELAY_CHANNELS', channel_key):
                 self.relay_mapping[channel_key] = config.get('RELAY_CHANNELS', channel_key)
             if config.has_option('RELAY_CONNECT', channel_key):
-                self.relay_mapping[f"state_{i}"] = config.get('RELAY_CONNECT', channel_key)
+                self.relay_mapping[f'state_{i}'] = config.get('RELAY_CONNECT', channel_key)
+            if config.has_option('RELAY_STARTUP', channel_key):
+                self.relay_mapping[f'startup_{i}'] = config.get('RELAY_STARTUP', channel_key)
 
     def print_relay_mappings(self):
         for channel, connection in self.relay_mapping.items():
@@ -209,9 +204,10 @@ class USBRelayController(object):
         return xor(False, invert)
 
     def get_state_state(self, relay):
+        # get if the relay is being driven
         state_tf = self.get_state(relay)
 
-        # if relay is being driven
+        # perform mapping based on normally-open or normally-closed
         relay_wiring = self.get_relay_map_state(relay)
         if state_tf:
             if relay_wiring == "NO":
@@ -242,11 +238,11 @@ class USBRelayController(object):
             self.set_state(relay, not self.get_state(relay))
 
     def open_all(self):
-        for i in range(1, NUM_RELAY + 1):
+        for i in range(1, self.num_relays+ 1):
             self.set_state(i, 0)
 
     def close_all(self):
-        for i in range(1, NUM_RELAY + 1):
+        for i in range(1, self.num_relays + 1):
             self.set_state(i, 1)
 
     def __getitem__(self, relay):
