@@ -134,52 +134,15 @@ class SPD3303X(Equipment):
         self.inst.write("INSTrument?")
         return self.inst.read()
 
-    def get_current(self, channel):
-        '''
-        Get the current value for a given channel
-        '''
-        if channel not in range(1,self.channel_count+1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            return float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
-
     def get_voltage(self, channel):
         '''
         Get the voltage value for a given channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count+1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"MEASure:VOLTage? CH{channel}")
             return float(self.inst.read())
-
-    def get_power(self, channel):
-        '''
-        Get the power value for a given channel
-        '''
-        if channel not in range(1,self.channel_count+1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"MEASure:POWEr? CH{channel}")
-            return float(self.inst.read())
-
-    def set_current(self, channel, value):
-        '''
-        Set the current value for the selected channel
-        '''
-        if channel not in range(1, self.channel_count+1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.__send_cmd(f"CH{channel}:CURRent {value}")
-    
-    def get_set_current(self, channel):
-        '''
-        Get the set current value of the channel
-        '''
-        if channel not in range(1,self.channel_count+1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"CH{channel}:CURRent?")
 
     def set_voltage(self, channel, value):
         '''
@@ -197,7 +160,7 @@ class SPD3303X(Equipment):
                 slope = -0.032891666666666645
             cal_value = round(value + value*slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
-    
+
     def get_set_voltage(self, channel):
         '''
         Get the set voltage value of the channel
@@ -206,6 +169,47 @@ class SPD3303X(Equipment):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"CH{channel}:VOLTage?")
+
+    def get_current(self, channel):
+        '''
+        Get the current value for a given channel
+        '''
+        if channel not in range(1, self.channel_count+1):
+            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
+        else:
+            raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
+            if channel == 1:
+                return raw_current - 0
+            elif channel == 2:
+                return raw_current - 0
+
+    def set_current(self, channel, value):
+        '''
+        Set the current value for the selected channel
+        '''
+        if channel not in range(1, self.channel_count+1):
+            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
+        else:
+            self.__send_cmd(f"CH{channel}:CURRent {value}")
+
+    def get_set_current(self, channel):
+        '''
+        Get the set current value of the channel
+        '''
+        if channel not in range(1,self.channel_count+1):
+            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
+        else:
+            self.inst.write(f"CH{channel}:CURRent?")
+
+    def get_power(self, channel):
+        '''
+        Get the power value for a given channel
+        '''
+        if channel not in range(1,self.channel_count+1):
+            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
+        else:
+            self.inst.write(f"MEASure:POWEr? CH{channel}")
+            return float(self.inst.read())
 
 ##################################
 #### control functions  ##########
