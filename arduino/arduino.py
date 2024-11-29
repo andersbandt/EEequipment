@@ -12,8 +12,6 @@ from common.SerialGeneral import SerialGeneral
 
 
 class Arduino(Equipment):
-    # define class variables here
-
     def __init__(self, port, baud_rate):
         self.port = port
         self.baud_rate = baud_rate
@@ -22,8 +20,10 @@ class Arduino(Equipment):
             self.baud_rate)
 
     def send_char(self, char):
-        # TODO: add some error checking on input char
-        self.serial.send_data(char)
+        if isinstance(char, str) and len(char) == 1:
+            self.serial.send_data(char)
+        else:
+            raise ValueError
         return True
 
     def get_all_data(self):
