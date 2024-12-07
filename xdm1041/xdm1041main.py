@@ -46,31 +46,64 @@ class XDM1041(Equipment):
     def __init__(self, serial_device, mode: XDM1041Mode):
         super().__init__()
         self.mode = mode
-        self.serial = serial.Serial(
-            port=serial_device,
-            baudrate=115200,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=0.5,
-            xonxoff=False,
-            write_timeout=0.5
-        )
+        try:
+            self.serial = serial.Serial(
+                port=serial_device,
+                baudrate=115200,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=0.5,
+                xonxoff=False,
+                write_timeout=0.5
+            )
+            self.status = self.serial.is_open
+        except serial.serialutil.SerialException:
+            self.serial = None
+            self.status = False
 
         self.logger = logging.getLogger(__name__) # TODO: understand this logger thing
-        self.logger.info("Serial port status:{}".format(self.serial.is_open))
+        self.logger.info("Serial port status:{}".format(self.status))
         self.set_range_auto()
+
+    # test_conn: queries IDN
+    def test_conn(self) -> str:
+        cmd = str(XDM1041Cmd.IDN)
+        self.send_cmd(cmd)
+        time.sleep(0.2)
+        idn_info = self.read_result()
+        return idn_info
 
     def connect(self):
         if self.serial and self.serial.is_open is False:
             self.serial.open()
+
+    def send_cmd(self, cmd: str):
+        """
+        Take one of the string commands and encode it and send it over the wire
+        """
+        if self.status:
+            self.serial.write(cmd.encode())
+
+    def read_result(self):
+        """
+        Not too much to do here, all the output from the instrument are ascii strings with linefeed
+        just read a line and return
+        """
+        if self.status:
+            ret_str = self.serial.readline()
+            try:
+                ret_str.decode()
+            except UnicodeDecodeError:
+                return ret_str
+            finally:
+                return ret_str.decode()
 
     def disconnect(self):
         if self.serial and self.serial.is_open:
             self.serial.close()
 
     def set_range(self, rng: int) -> bool:
-
         """
         We must first detect the mode, then ensure the range is within the allowed values
         Name        Type        Range
@@ -85,12 +118,12 @@ class XDM1041(Equipment):
         """
         if self.mode not in XDM1041.range_ref_dict:
             self.logger.error("Selected mode:{} does not support range selection!".format(self.mode.name))
-            return -1
+            return False
 
         range_dict = XDM1041.range_ref_dict[self.mode]
         if rng not in range_dict.keys():
             self.logger.error("Selected range: {} is not supported!".format(rng))
-            return -1
+            return False
 
         # we made it, set the range
         cmd = str(XDM1041Cmd.SET_RANGE).format(rng)
@@ -107,35 +140,23 @@ class XDM1041(Equipment):
         result = self.read_result()
         return result
 
-    def test_conn(self):
-        cmd = str(XDM1041Cmd.IDN)
+    def get_range(self):
+        cmd = str(XDM1041Cmd.GET_RANGE)
         self.send_cmd(cmd)
-        time.sleep(0.2)
-        manuf_info = self.read_result()
-        try:
-            str_to_k = manuf_info.split(',')
-            print(str_to_k)
-        except TypeError:
-            print(f"ERROR: went wrong splitting byte (likely got str): {manuf_info}")
-        return manuf_info
+        result = self.read_result()
+        return result
 
-    def send_cmd(self, cmd: str):
-        """
-        Take one of the string commands and encode it and send it over the wire
-        """
-        self.serial.write(cmd.encode())
+    def get_func1(self):
+        cmd = str(XDM1041Cmd.FUNC1)
+        self.send_cmd(cmd)
+        result = self.read_result()
+        return result
 
-    def read_result(self) -> str:
-        """
-        Not too much to do here, all the output from the instrument are ascii strings with linefeed
-        just read a line and return
-        """
-        ret_str = self.serial.readline()
-        try:
-            ret_str.decode()
-        except UnicodeDecodeError as e:
-            return ret_str
-        return ret_str.decode()
+    def get_func2(self):
+        cmd = str(XDM1041Cmd.FUNC2)
+        self.send_cmd(cmd)
+        result = self.read_result()
+        return result
 
     def read_val1_raw(self):
         """
