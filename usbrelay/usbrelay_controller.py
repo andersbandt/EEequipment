@@ -84,12 +84,12 @@ class USBRelayController(object):
 
         if self.device is not None:
             self.product = usb.util.get_string(device, device.iProduct)
-            self.num_relays = int(self.product[8:]) # TODO: why am I not using this everywhere? What's with the NUM_RELAY constant I had to define?
+            self.num_relays = int(self.product[8:])
             self._update_status()
             self.status = True
         else:
             self.product = None
-            self.num_relays = None
+            self.num_relays = 0
             self.status = False
 
         self.aliases = {}
@@ -184,7 +184,7 @@ class USBRelayController(object):
             raise ValueError("'%s' is not a valid relay descriptor" % relay)
 
         relay_num, invert = convert()
-        if relay_num < 1 or relay_num > self.num_relays: # TODO: this thing has no exception catch for un-initialized relay
+        if relay_num < 1 or relay_num > self.num_relays:
             raise IndexError(
                 "Index %r is outside range [1..%d]" % (relay_num, self.num_relays)
             )

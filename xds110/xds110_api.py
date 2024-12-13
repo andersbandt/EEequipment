@@ -79,7 +79,10 @@ def xds110_reset():
 
 def get_xds110_status():
     executable_path = os.path.join(base_tools_path, xds110_xds_cmd)
+
     packet = subp.execute_command(executable_path, ["-e"])
+    if packet is False:
+        return [False, False]
 
     # check if result contains search string
     search_string = "Found 0 devices"
@@ -97,8 +100,9 @@ def get_xds110_status():
 
 
 def flash_firmware(config_type, serial_number):
-    # TODO: move these also to a config file?
-    if config_type == "target_power":
+    if config_type == "Any":
+        config_file = f"/targetConfigs/CC2642R1F2.ccxml"
+    elif config_type == "target_power":
         config_file = f"/targetConfigs/CC2642R1F2_{serial_number}.ccxml"
     elif config_type == "probe_power":
         config_file = "/targetConfigs/CC2642R1F_probe_PWR.ccxml"
