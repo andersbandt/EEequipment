@@ -24,13 +24,8 @@ if os_name != "Windows" and os_name != "Linux":
 
 # initialize the config parser
 config_file_path = "./EEequipment/xds110/config.ini"
-if os.path.exists(config_file_path):
-    config = configparser.ConfigParser()
-    config.read(config_file_path)
-else:
-    print(f"Configuration file {config_file_path} does not exist.")
-    raise BaseException
-
+config = configparser.ConfigParser()
+config.read(config_file_path)
 
 # read in parameters from the config file
 base_ccs = config[os_name]["base_ccs"]
