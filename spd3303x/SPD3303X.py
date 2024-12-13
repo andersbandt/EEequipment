@@ -11,10 +11,12 @@ class SPD3303X(Equipment):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
+
     class SPD3303Exception(Exception):
         '''
         Exception raised when a call returns an error message
         '''
+
         def __init__(self, code, message):
             self.code = code
             self.message = message
@@ -22,7 +24,7 @@ class SPD3303X(Equipment):
 
         def __str__(self):
             return f'Error Code: {self.code} -> {self.message}'
-            
+
     scpi = None
     channel_count = 2
     save_file_count = 5
@@ -59,7 +61,6 @@ class SPD3303X(Equipment):
             print("Error with opening SPD3303X")
             print(e)
             # self.inst = None
-
 
     def test_conn(self):
         print("SPD3303X: issuing IDN? command")
@@ -103,7 +104,7 @@ class SPD3303X(Equipment):
         '''
         Save the current state into non-volatile memory
         '''
-        if file_num not in range(1, self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count + 1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*SAV {file_num}")
@@ -112,7 +113,7 @@ class SPD3303X(Equipment):
         '''
         Recall state that had been saved from nonvolatile memory
         '''
-        if file_num not in range(1, self.save_file_count+1):
+        if file_num not in range(1, self.save_file_count + 1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
             self.inst.write(f"*RCL {file_num}")
@@ -121,14 +122,14 @@ class SPD3303X(Equipment):
         '''
         Select the channel to be operated on
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"INSTrument CH{channel}")
 
-##################################
-#### get/set functions  ##########
-##################################
+    ##################################
+    #### get/set functions  ##########
+    ##################################
     def get_active_channel(self):
         '''
         Query for the active channel
@@ -140,7 +141,7 @@ class SPD3303X(Equipment):
         '''
         Get the voltage value for a given channel
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"MEASure:VOLTage? CH{channel}")
@@ -150,7 +151,7 @@ class SPD3303X(Equipment):
         '''
         Set the voltage value for the selected channel
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
@@ -160,14 +161,14 @@ class SPD3303X(Equipment):
             elif channel == 2:
                 offset = 0.24129166666666663
                 slope = -0.032891666666666645
-            cal_value = round(value + value*slope + offset, 3)
+            cal_value = round(value + value * slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
 
     def get_set_voltage(self, channel):
         '''
         Get the set voltage value of the channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"CH{channel}:VOLTage?")
@@ -176,7 +177,7 @@ class SPD3303X(Equipment):
         '''
         Get the current value for a given channel
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
@@ -189,7 +190,7 @@ class SPD3303X(Equipment):
         '''
         Set the current value for the selected channel
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"CH{channel}:CURRent {value}")
@@ -198,7 +199,7 @@ class SPD3303X(Equipment):
         '''
         Get the set current value of the channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"CH{channel}:CURRent?")
@@ -207,20 +208,20 @@ class SPD3303X(Equipment):
         '''
         Get the power value for a given channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"MEASure:POWEr? CH{channel}")
             return float(self.inst.read())
 
-##################################
-#### control functions  ##########
-##################################
+    ##################################
+    #### control functions  ##########
+    ##################################
     def output_on(self, channel):
         '''
         Turn on the channel output
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},ON")
@@ -229,7 +230,7 @@ class SPD3303X(Equipment):
         '''
         Turn off the channel outputdo
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut CH{channel},OFF")
@@ -244,7 +245,7 @@ class SPD3303X(Equipment):
         '''
         Turn on the Waveform Display function of specified channel
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.__send_cmd(f"OUTPut:WAVE CH{channel},ON")
@@ -253,7 +254,7 @@ class SPD3303X(Equipment):
         '''
         Turn on the Waveform Display function of specified channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"OUTPut:WAVE CH{channel},OFF")
@@ -262,7 +263,7 @@ class SPD3303X(Equipment):
         '''
         Set the timing parameters of specified channel, group setting the voltage current and execution time
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
@@ -271,19 +272,19 @@ class SPD3303X(Equipment):
         '''
         Query for the voltage/current/time parameters of specified group of specific channels
         '''
-        if channel not in range(1, self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr:SET? CH{channel},{group}")
             response = self.inst.read()
             resp_arr = response.split(",")
-            return (resp_arr[0],(resp_arr[1],resp_arr[2]))
+            return (resp_arr[0], (resp_arr[1], resp_arr[2]))
 
     def turn_on_timer(self, channel):
         '''
         Turn on timer function of specific channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr CH{channel},ON")
@@ -292,14 +293,14 @@ class SPD3303X(Equipment):
         '''
         Turn off timer fuction of specific channel
         '''
-        if channel not in range(1,self.channel_count+1):
+        if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             self.inst.write(f"TIMEr CH{channel},OFF")
 
-##################################
-#### etc functions  ##############
-##################################
+    ##################################
+    #### etc functions  ##############
+    ##################################
     def check_error(self):
         '''
         Check for an error on the system
@@ -360,9 +361,9 @@ class SPD3303X(Equipment):
         hex_num = self.inst.read()
         return self._decode_hex(hex_num)
 
-##################################
-#### networking functions  #######
-##################################
+    ##################################
+    #### networking functions  #######
+    ##################################
     def assign_ip_addr(self, ip):
         '''
         Assign a static Internet Protocol (IP) address for the instrument
@@ -405,7 +406,7 @@ class SPD3303X(Equipment):
         '''
         self.inst.write(f"GATEaddr?")
         return self.inst.read()
-    
+
     def dhcp(self, state):
         '''
         Turn on or off DHCP
@@ -418,13 +419,13 @@ class SPD3303X(Equipment):
     def query_dhcp(self):
         '''
         Query to see the status of DHCP
-        '''        
+        '''
         self.inst.write(f"DHCP?")
         return self.inst.read()
 
-##################################
-#### calibration functions  ######
-##################################
+    ##################################
+    #### calibration functions  ######
+    ##################################
     def cal_voltage(self, channel, point, actual_v):
         #cmd = f"CAL:VOLT ch{channel},{point},{actual_v}"
         cmd = f"CALibration:VOLTage CH{channel},{point},{actual_v}"
@@ -440,10 +441,10 @@ class SPD3303X(Equipment):
         cmd = "*CALRCL"
         print(f"SPD3303X: querying {cmd}")
         print(self.inst.query("CALRCL"))
-        
+
     def cal_clear(self, channel, cal_type):
-        NR1 = -1 # for "setting" calibration coefficients
-        NR2 = -1 # for "display" calibration coefficients
+        NR1 = -1  # for "setting" calibration coefficients
+        NR2 = -1  # for "display" calibration coefficients
         if channel == 1:
             if cal_type == "VOLTAGE":
                 NR1 = 0
@@ -465,7 +466,6 @@ class SPD3303X(Equipment):
 
     def cal_clear_all(self):
         self.inst.write("*CALCLS 8")
-        
+
     def cal_save(self):
         self.inst.write("*CALST")
-
