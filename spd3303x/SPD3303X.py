@@ -1,7 +1,5 @@
-
-
+import pyvisa.errors
 # import needed modules
-import pyvisa
 from pyvisa import ResourceManager
 import usb
 
@@ -9,7 +7,6 @@ import usb
 from EEequipment.Equipment import Equipment
 
 
-# TODO: figure out how to get rid of the "having to press connect twice" issue
 class SPD3303X(Equipment):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
@@ -51,13 +48,18 @@ class SPD3303X(Equipment):
         # attempt to open instance
         try:
             self.inst = rm.open_resource(instadd)
-        except usb.core.USBError as e:
+            self.inst.write_termination = '\n'
+            self.inst.read_termination = '\n'
+            self.inst.timeout = 1 * 1000  # NOTE: used to be 2 seconds
+
+            # set default voltages on connect to 0V because I'm dumb and burn my boards too often
+            self.set_voltage(1, 0)
+            self.set_voltage(2, 0)
+        except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
             print("Error with opening SPD3303X")
             print(e)
-            self.inst = None
-        self.inst.write_termination = '\n'
-        self.inst.read_termination = '\n'
-        self.inst.timeout = 2*1000  # NOTE: used to be 4 seconds
+            # self.inst = None
+
 
     def test_conn(self):
         print("SPD3303X: issuing IDN? command")

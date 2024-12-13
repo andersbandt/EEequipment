@@ -55,7 +55,6 @@ class XDM1041Mode(Enum):
 
 
 class XDM1041Cmd(Enum):
-
     IDN = 1
 
     RATE_S = 13
@@ -86,8 +85,11 @@ class XDM1041Cmd(Enum):
     GET_CALC_MIN = 53
     GET_CALC_MAX = 54
 
-    def __str__(self):
+    FUNC1 = 55
+    FUNC2 = 56
+    GET_RANGE = 57
 
+    def __str__(self):
         if self.value == XDM1041Cmd.IDN.value:
             return "*IDN?\n"
 
@@ -150,3 +152,14 @@ class XDM1041Cmd(Enum):
 
         elif self.value == XDM1041Cmd.SET_CALC_FUNC_AVG.value:
             return "CALC:FUNC AVER\n"
+
+        elif self.value == XDM1041Cmd.FUNC1.value:
+            return "FUNC1?"
+
+        elif self.value == XDM1041Cmd.FUNC2.value:
+            return "FUNC2?"
+
+        elif self.value == XDM1041Cmd.GET_RANGE.value:
+            return "RANGE?"
+
+
