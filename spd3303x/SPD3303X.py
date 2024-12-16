@@ -82,7 +82,7 @@ class SPD3303X(Equipment):
         # read in parameters from the config file
         self.ch1_v_m = float(config["CH1"]["v_slope"])
         self.ch1_v_b = float(config["CH1"]["v_offset"])
-        self.ch1_i_m = float(config["CH1"]["i_offset"])
+        self.ch1_i_b = float(config["CH1"]["i_offset"])
 
         self.ch2_v_m = float(config["CH2"]["v_slope"])
         self.ch2_v_b = float(config["CH2"]["v_offset"])
