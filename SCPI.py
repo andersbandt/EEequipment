@@ -1,7 +1,5 @@
-
 # import needed modules
 import serial
-
 
 
 class SCPI:
@@ -19,7 +17,6 @@ class SCPI:
             parity='N',
             stopbits=1,
             timeout=timeout)
-
 
     def __del__(self):
         # try:
