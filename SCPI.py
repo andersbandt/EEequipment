@@ -6,7 +6,7 @@ class SCPI:
     """
         Serial SCPI interface
     """
-    _SIF: serial.Serial  # TODO: understand this line
+    _SIF: serial.Serial
 
     def __init__(self, port_dev, speed, timeout=2):
         self._SIF = None
