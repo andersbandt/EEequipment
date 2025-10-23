@@ -71,6 +71,9 @@ class SPD3303X(Equipment):
         except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
             print("Error with opening SPD3303X")
             print(e)
+            # TODO: need to determine how to handle self.inst
+            #       right now it's essentially an AttributeError as I don't do anything
+            #       but adding checks for if it's Nonetype everywhere sounds exhausting
 
     def _load_cal(self):
         # initialize the config parser
@@ -159,6 +162,9 @@ class SPD3303X(Equipment):
         self.__send_cmd(f"CH{channel}:VOLTage {value}")
 
     def set_voltage(self, channel, value):
+        if type(value) != float:
+            return False
+       
         '''
         Set the voltage value for the selected channel
         '''
@@ -167,7 +173,7 @@ class SPD3303X(Equipment):
         else:
             def get_ch_v_cal(ch):
                 if ch == 1:
-                    return self.ch2_v_m, self.ch2_v_b
+                    return self.ch1_v_m, self.ch1_v_b
                 elif ch == 2:
                     return self.ch2_v_m, self.ch2_v_b
 
