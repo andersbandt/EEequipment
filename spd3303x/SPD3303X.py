@@ -28,7 +28,6 @@ class SPD3303X(Equipment):
         def __str__(self):
             return f'Error Code: {self.code} -> {self.message}'
 
-    scpi = None  # TODO: what is this doing?
     ch1_v_m = None
     ch1_v_b = None
     ch1_i_b = None
@@ -85,7 +84,7 @@ class SPD3303X(Equipment):
         # read in parameters from the config file
         self.ch1_v_m = float(config["CH1"]["v_slope"])
         self.ch1_v_b = float(config["CH1"]["v_offset"])
-        self.ch1_i_m = float(config["CH1"]["i_offset"])
+        self.ch1_i_b = float(config["CH1"]["i_offset"])
 
         self.ch2_v_m = float(config["CH2"]["v_slope"])
         self.ch2_v_b = float(config["CH2"]["v_offset"])
@@ -159,9 +158,8 @@ class SPD3303X(Equipment):
     ##################################
     #### get/set functions  ##########
     ##################################
-    # TODO: finish function to set raw voltage
     def set_raw_voltage(self, channel, value):
-        pass
+        self.__send_cmd(f"CH{channel}:VOLTage {value}")
 
     def set_voltage(self, channel, value):
         if type(value) != float:
@@ -228,9 +226,9 @@ class SPD3303X(Equipment):
             self.inst.write(f"MEASure:VOLTage? CH{channel}")
             return float(self.inst.read())
 
-    # TODO: finish function to get raw current
-    def get_raw_current(self):
-        pass
+    def get_raw_current(self, channel):
+        raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
+        return raw_current
 
     def get_current(self, channel):
         '''
