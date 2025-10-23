@@ -173,7 +173,7 @@ class SPD3303X(Equipment):
         else:
             def get_ch_v_cal(ch):
                 if ch == 1:
-                    return self.ch2_v_m, self.ch2_v_b
+                    return self.ch1_v_m, self.ch1_v_b
                 elif ch == 2:
                     return self.ch2_v_m, self.ch2_v_b
 
