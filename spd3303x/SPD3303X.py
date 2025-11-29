@@ -7,14 +7,13 @@ import usb
 import configparser
 
 # import Equipment parent class
-from EEequipment.Equipment import Equipment
+from EEequipment.TestEquipment import PowerSupply
 
 
-class SPD3303X(Equipment):
+class SPD3303X(PowerSupply):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
-
     class SPD3303Exception(Exception):
         '''
         Exception raised when a call returns an error message
@@ -45,22 +44,22 @@ class SPD3303X(Equipment):
     software_version = ""
     hardware_version = ""
 
-    def __init__(self, instadd):
+    def __init__(self, address):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__()
+        super().__init__(address)
         self._load_cal()
 
         # set up the ResourceManager
         try:
-            rm = ResourceManager('@py')  # use 'pyvisa-py' backend
+            self.rm = ResourceManager('@py')  # use 'pyvisa-py' backend
         except ValueError:
-            rm = ResourceManager()
+            self.rm = ResourceManager()
 
         # attempt to open instance
         try:
-            self.inst = rm.open_resource(instadd)
+            self.inst = self.rm.open_resource(self.address)
             self.inst.write_termination = '\n'
             self.inst.read_termination = '\n'
             self.inst.timeout = 1 * 1000  # NOTE: used to be 2 seconds
@@ -71,6 +70,9 @@ class SPD3303X(Equipment):
         except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
             print("Error with opening SPD3303X")
             print(e)
+            # TODO: need to determine how to handle self.inst
+            #       right now it's essentially an AttributeError as I don't do anything
+            #       but adding checks for if it's Nonetype everywhere sounds exhausting
 
     def _load_cal(self):
         # initialize the config parser
@@ -97,7 +99,13 @@ class SPD3303X(Equipment):
         print(f"IDN: {idn}")
         return idn
 
-    def close(self):
+    def connect(self):
+        # TOOD: I want to be able to pass in another port
+        self.inst = self.rm.open_resource(self.address)
+        self.inst.write_termination = '\n'
+        self.inst.read_termination = '\n'
+
+    def disconnect(self):
         '''
         Close the socket connection
         '''
@@ -118,7 +126,7 @@ class SPD3303X(Equipment):
         # self.hardware_version = resp_arr[4]
         return idn
 
-    def __send_cmd(self, cmd):
+    def _send_cmd(self, cmd):
         '''
         Generic call to send command with error checking
         '''
@@ -156,25 +164,29 @@ class SPD3303X(Equipment):
     #### get/set functions  ##########
     ##################################
     def set_raw_voltage(self, channel, value):
-        self.__send_cmd(f"CH{channel}:VOLTage {value}")
+        self._send_cmd(f"CH{channel}:VOLTage {value}")
 
     def set_voltage(self, channel, value):
+        if type(value) != float:
+            return False
+
+        if channel not in range(1, self.channel_count + 1):
+            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
+
         '''
         Set the voltage value for the selected channel
         '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            def get_ch_v_cal(ch):
-                if ch == 1:
-                    return self.ch2_v_m, self.ch2_v_b
-                elif ch == 2:
-                    return self.ch2_v_m, self.ch2_v_b
+        def get_ch_v_cal(ch):
+            if ch == 1:
+                return self.ch1_v_m, self.ch1_v_b
+            elif ch == 2:
+                return self.ch2_v_m, self.ch2_v_b
 
-            # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
-            slope, offset = get_ch_v_cal(channel)
-            cal_value = round(value + value * slope + offset, 3)
-            self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
+        # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
+        slope, offset = get_ch_v_cal(channel)
+        cal_value = round(value + value * slope + offset, 3)
+        self._send_cmd(f"CH{channel}:VOLTage {cal_value}")
+        return True
 
     def set_current(self, channel, value):
         '''
@@ -183,7 +195,7 @@ class SPD3303X(Equipment):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.__send_cmd(f"CH{channel}:CURRent {value}")
+            self._send_cmd(f"CH{channel}:CURRent {value}")
 
     def get_set_voltage(self, channel):
         '''
@@ -229,6 +241,7 @@ class SPD3303X(Equipment):
         Get the current value for a given channel
         '''
         if channel not in range(1, self.channel_count + 1):
+            print(f"trying to get current with bad channel:{channel}")
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
             raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
@@ -281,7 +294,7 @@ class SPD3303X(Equipment):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.__send_cmd(f"OUTPut:WAVE CH{channel},ON")
+            self._send_cmd(f"OUTPut:WAVE CH{channel},ON")
 
     def turn_off_waveform_display(self, channel):
         '''
@@ -402,7 +415,7 @@ class SPD3303X(Equipment):
         Assign a static Internet Protocol (IP) address for the instrument
         WARNING: This command is invalid when DHCP is on
         '''
-        self.__send_cmd(f"IPaddr {ip}")
+        self._send_cmd(f"IPaddr {ip}")
 
     def query_ip_addr(self):
         '''
@@ -416,7 +429,7 @@ class SPD3303X(Equipment):
         Assign a subnet mask for the instrument
         WARING: This command is invalid when DHCP is on
         '''
-        self.__send_cmd(f"MASKaddr {subnet_mask}")
+        self._send_cmd(f"MASKaddr {subnet_mask}")
 
     def query_subnet_mask(self):
         '''
@@ -430,7 +443,7 @@ class SPD3303X(Equipment):
         Assign a gate address for the instrument
         WARING: This command is invalid when DHCP is on
         '''
-        self.__send_cmd(f"GATEaddr {gate_addr}")
+        self._send_cmd(f"GATEaddr {gate_addr}")
 
     def query_gate_address(self):
         '''

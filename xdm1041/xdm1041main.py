@@ -10,12 +10,12 @@ import serial
 import time
 
 # import user created modules
-from EEequipment.Equipment import Equipment
+from EEequipment.TestEquipment import DMM
 from EEequipment.xdm1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
 from EEequipment.xdm1041 import xdm1041helper
 
 
-class XDM1041(Equipment):
+class XDM1041(DMM):
     rng_dcv = {1: "50mV", 2: "500mV", 3: "5V", 4: "50V", 5: "500V", 6: "1000V"}
     rng_acv = {1: "500mV", 2: "5V", 3: "50V", 4: "500V", 5: "750V"}
     rng_dci = {1: "500uA", 2: "5mA", 3: "50mA", 4: "500mA", 5: "5A", 6: "10A"}

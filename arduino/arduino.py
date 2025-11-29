@@ -7,7 +7,7 @@
 
 
 # import user created modules
-from EEequipment.Equipment import Equipment
+from EEequipment.TestEquipment import Equipment
 from common.SerialGeneral import SerialGeneral
 
 
