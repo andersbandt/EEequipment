@@ -169,7 +169,7 @@ class SPD3303X(PowerSupply):
     def set_voltage(self, channel, value):
         if type(value) != float:
             return False
-       
+
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
 
