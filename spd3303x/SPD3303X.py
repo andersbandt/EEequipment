@@ -162,7 +162,9 @@ class SPD3303X(Equipment):
         self.__send_cmd(f"CH{channel}:VOLTage {value}")
 
     def set_voltage(self, channel, value):
-        if type(value) != float:
+        if type(value) != float and type(value) != int:
+            print(f"Exiting because value is type: {type(value)}")
+            print("Expecting float or int")
             return False
        
         '''
@@ -181,6 +183,7 @@ class SPD3303X(Equipment):
             slope, offset = get_ch_v_cal(channel)
             cal_value = round(value + value * slope + offset, 3)
             self.__send_cmd(f"CH{channel}:VOLTage {cal_value}")
+            print(f"CH{channel}:VOLTage {cal_value}")
 
     def set_current(self, channel, value):
         '''
