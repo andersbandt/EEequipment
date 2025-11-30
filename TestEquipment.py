@@ -255,9 +255,7 @@ class PowerSupply(TestEquipment):
     """Abstract power supply - defines PS-specific interface"""
 
     class PowerSupplyException(Exception):
-        '''
-        Exception raised when a call returns an error message
-        '''
+        """Exception raised when a call returns an error message"""
 
         def __init__(self, code, message):
             self.code = code
@@ -269,115 +267,117 @@ class PowerSupply(TestEquipment):
 
     def __init__(self, address: str, model: str, channel_count: int, connection_handler: ConnectionHandler):
         self.channel_count = channel_count
+        # Calibration defaults
+        self.ch1_v_m = 0.0
+        self.ch1_v_b = 0.0
+        self.ch2_v_m = 0.0
+        self.ch2_v_b = 0.0
+        self.ch1_i_b = 0.0
+        self.ch2_i_b = 0.0
         super().__init__(address, model, connection_handler)
 
+    def check_channel(self, channel):
+        # TODO: add check for type - int?
 
-    def check_channel_count(self, channel):
+        """Validate channel number is within range"""
         if channel not in range(1, self.channel_count + 1):
             raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
 
 
     def set_voltage(self, channel, value):
-        if type(value) != float:
-            return False
-
-        self.check_channel_count(channel)
-
-        '''
-        Set the voltage value for the selected channel
-        '''
-        def get_ch_v_cal(ch):
-            if ch == 1:
-                return self.ch1_v_m, self.ch1_v_b
-            elif ch == 2:
-                return self.ch2_v_m, self.ch2_v_b
-
-        # do some calibration correction (because Siglent makes a shitty product that is a pain to calibrate)
-        slope, offset = get_ch_v_cal(channel)
-        cal_value = round(value + value * slope + offset, 3)
-        self._send_cmd(f"CH{channel}:VOLTage {cal_value}")
+        """Set the voltage value for the selected channel with calibration"""
+        cmd = self.registry.get_command(self.model, "command", "set_voltage")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
         return True
 
     def set_current(self, channel, value):
-        '''
-        Set the current value for the selected channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self._send_cmd(f"CH{channel}:CURRent {value}")
+        """Set the current value for the selected channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "set_current")
+        cmd = cmd.format(channel=channel, value=value)
+        self.conn.write(cmd)
 
     def get_set_voltage(self, channel):
-        '''
-        Get the set voltage value of the channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.conn.write(f"CH{channel}:VOLTage?")
+        """Get the set voltage value of the channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_set_voltage")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+        response = self.conn.read()
+        return float(response)
 
     def get_set_current(self, channel):
-        '''
-        Get the set current value of the channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.conn.write(f"CH{channel}:CURRent?")
+        """Get the set current value of the channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_set_current")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+        response = self.conn.read()
+        return float(response)
+
+    def get_voltage(self, channel):
+        """Get the measured voltage value for a given channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_voltage")
+        cmd = cmd.format(channel=channel)
+        response = self.conn.query(cmd)
+        return float(response)
 
     def get_current(self, channel):
-        '''
-        Get the current value for a given channel
-        '''
-        self.check_channel_count()
+        """Get the current value for a given channel with calibration"""
+        self.check_channel(channel)
 
-        raw_current = float(self.conn.query(f"MEASure:CURRent? CH{channel}"))
-        if channel == 1:
-            return raw_current - self.ch1_i_b
-        elif channel == 2:
-            return raw_current - self.ch2_i_b
+        cmd = self.registry.get_command(self.model, "command", "get_current")
+        cmd = cmd.format(channel=channel)
+        return float(self.conn.query(cmd))
 
-    def get_power(self, channel: int) -> float:
-        pass
+    def get_power(self, channel):
+        """Get the power value for a given channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_power")
+        cmd = cmd.format(channel=channel)
+        response = self.conn.query(cmd)
+        return float(response)
 
     def output_on(self, channel):
-        '''
-        Turn on the channel output
-        '''
-        self.check_channel_count(channel)
+        """Turn on the channel output"""
+        self.check_channel(channel)
 
         cmd = self.registry.get_command(self.model, "command", "output_on")
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
 
     def output_off(self, channel):
-        '''
-        Turn off the channel output
-        '''
-        self.check_channel_count(channel)
-        self.conn.write(f"OUTPut CH{channel},OFF")
+        """Turn off the channel output"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "output_off")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
 
     def check_status(self):
-        '''
-        Return the top level info about the power supply functional status
-        '''
-        self.conn.write("SYSTem:STATus?")
-        hex_num = self.conn.read()
-        return self._decode_hex(hex_num)
+        """Return the top level info about the power supply functional status"""
+        cmd = self.registry.get_command(self.model, "common", "check_status")
+        return self.conn.query(cmd)
+
 
     def check_error(self):
-        '''
-        Check for an error on the system
-        '''
-        self.conn.write("SYSTem:ERRor?")
+        """Check for an error on the system"""
+        cmd = self.registry.get_command(self.model, "command", "check_error")
+        self.conn.write(cmd)
         response = self.conn.read()
         resp_list = response.split('  ')
-        # If error code zero do not raise exception, move along
+
         if resp_list[0] == '0':
             return False
-        # Remove the newline at the end of the message
-        resp_list[1] = resp_list[1][:-1]
-        # Raise a response with the error code and message
+
+        resp_list[1] = resp_list[1].rstrip('\n')
         raise self.PowerSupplyException(resp_list[0], resp_list[1])
 
 

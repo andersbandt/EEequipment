@@ -119,14 +119,13 @@ class SPD3303X(PowerSupply):
         self._send_cmd(f"CH{channel}:VOLTage {value}")
 
     def set_voltage(self, channel, value):
-        if type(value) != float:
-            return False
-
-        self.check_channel_count(channel)
-
         '''
         Set the voltage value for the selected channel
         '''
+        if type(value) != float:
+            return False
+
+        self.check_channel(channel)
 
         def get_ch_v_cal(ch):
             if ch == 1:
@@ -151,11 +150,10 @@ class SPD3303X(PowerSupply):
         '''
         Get the voltage value for a given channel
         '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.conn.write(f"MEASure:VOLTage? CH{channel}")
-            return float(self.conn.read())
+        self.check_channel(channel)
+
+        self.conn.write(f"MEASure:VOLTage? CH{channel}")
+        return float(self.conn.read())
 
     def get_raw_current(self, channel):
         raw_current = float(self.conn.query(f"MEASure:CURRent? CH{channel}"))
@@ -165,23 +163,22 @@ class SPD3303X(PowerSupply):
         '''
         Get the current value for a given channel
         '''
-        self.check_channel_count(channel)
+        self.check_channel(channel)
 
         raw_current = self.get_raw_current(channel)
-            if channel == 1:
-                return raw_current - self.ch1_i_b
-            elif channel == 2:
-                return raw_current - self.ch2_i_b
+        if channel == 1:
+            return raw_current - self.ch1_i_b
+        elif channel == 2:
+            return raw_current - self.ch2_i_b
 
     def get_power(self, channel):
         '''
         Get the power value for a given channel
         '''
-        self.check_channel_count(channel)
+        self.check_channel(channel)
 
-        else:
-            self.conn.write(f"MEASure:POWEr? CH{channel}")
-            return float(self.conn.read())
+        self.conn.write(f"MEASure:POWEr? CH{channel}")
+        return float(self.conn.read())
 
     ##################################
     #### control functions  ##########
