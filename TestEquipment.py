@@ -1,0 +1,403 @@
+
+
+# import needed modules
+from pyvisa import ResourceManager
+import usb
+import pyvisa.errors
+import configparser
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+
+class CommandRegistry:
+    """Loads and manages equipment commands from INI files"""
+
+    def __init__(self, equipment_dir: str = "EEequipment"):
+        self.equipment_dir = Path(equipment_dir)
+        self.commands = {}
+        self._load_all_commands()
+
+    def _load_all_commands(self):
+        """Load config.ini from each model subdirectory"""
+        if not self.equipment_dir.exists():
+            raise FileNotFoundError(f"Equipment directory not found: {self.equipment_dir}")
+
+        # Look for subdirectories containing config.ini
+        for model_dir in self.equipment_dir.iterdir():
+            if not model_dir.is_dir():
+                continue
+
+            config_file = model_dir / "config.ini"
+            if not config_file.exists():
+                continue
+
+            model_name = model_dir.name  # Use directory name as model identifier
+            config = configparser.ConfigParser()
+            config.read(config_file)
+
+            self.commands[model_name] = {
+                section: dict(config[section])
+                for section in config.sections()
+            }
+            print(f"Loaded commands for '{model_name}' from {config_file}")
+
+    def get_command(self, model: str, section: str, cmd_name: str) -> str:
+        if model not in self.commands:
+            raise ValueError(f"Model not found: {model}")
+        if section not in self.commands[model]:
+            raise ValueError(f"Section '{section}' not found for {model}")
+        if cmd_name not in self.commands[model][section]:
+            raise ValueError(f"Command '{cmd_name}' not found in {model}:{section}")
+
+        return self.commands[model][section][cmd_name]
+
+    def format_command(self, model: str, section: str, cmd_name: str, **kwargs) -> str:
+        cmd_template = self.get_command(model, section, cmd_name)
+        return cmd_template.format(**kwargs)
+
+    def get_config_section(self, model: str, section: str) -> dict:
+        """Get entire config section (for connection params, etc)"""
+        if model not in self.commands:
+            raise ValueError(f"Model not found: {model}")
+        return self.commands[model].get(section, {})
+
+
+_registry = None
+
+
+def get_registry(equipment_dir: str = "EEequipment") -> CommandRegistry:
+    global _registry
+    if _registry is None:
+        _registry = CommandRegistry(equipment_dir)
+    return _registry
+
+
+# ============================================================================
+# CONNECTION HANDLERS (Protocol layer - composition)
+# ============================================================================
+
+class ConnectionHandler(ABC):
+    """Abstract connection handler - defines the protocol"""
+
+    @abstractmethod
+    def connect(self, address: str, config: dict):
+        pass
+
+    @abstractmethod
+    def disconnect(self):
+        pass
+
+    @abstractmethod
+    def write(self, cmd: str):
+        pass
+
+    @abstractmethod
+    def read(self) -> str:
+        pass
+
+    @abstractmethod
+    def query(self, cmd: str) -> str:
+        pass
+
+    @abstractmethod
+    def send_cmd(self, cmd: str) -> str:
+        pass
+
+
+class PyVISAHandler(ConnectionHandler):
+    """Handles PyVISA protocol"""
+
+    def __init__(self):
+        self.rm = None
+        self.inst = None
+        self.status = False
+
+    def connect(self, address: str, config: dict):
+        # set up the ResourceManager
+        try:
+            self.rm = ResourceManager('@py')  # use 'pyvisa-py' backend
+        except ValueError:
+            self.rm = ResourceManager()
+
+        # attempt to open instance
+        try:
+            print("Starting PyVISA ConnectionHandler")
+            self.inst = self.rm.open_resource(address)
+
+            if 'timeout' in config:
+                self.inst.timeout = int(config['timeout'])
+                print(f"\ttimeout: {self.inst.timeout}")
+            if 'read_termination' in config:
+                self.inst.read_termination = config['read_termination'].encode().decode('unicode_escape')
+                print("\tread term:", repr(self.inst.read_termination))
+            if 'write_termination' in config:
+                self.inst.write_termination = config['write_termination'].encode().decode('unicode_escape')
+                print("\twrite term:", repr(self.inst.write_termination))
+
+            self.status = True
+        except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
+            print("Error with opening PyVISA Handler")
+            self.status = False
+            print(e)
+
+    def disconnect(self):
+        if self.inst:
+            self.inst.close()
+        if self.rm:
+            self.rm.close()
+
+    def write(self, cmd: str):
+        self.inst.write(cmd)
+
+    def read(self) -> str:
+        if not self.status:
+            raise RuntimeError("Not connected")
+        return self.inst.read()
+
+    def query(self, cmd: str):
+        if not self.status:
+            raise RuntimeError("Not connected")
+
+        return self.inst.query(cmd)
+
+    def send_cmd(self, cmd: str) -> str:
+        if not self.status:
+            raise RuntimeError("Not connected")
+
+        if cmd.endswith('?'):
+            return self.inst.query(cmd)
+        else:
+            self.inst.write(cmd)
+            return ""
+
+
+class SerialHandler(ConnectionHandler):
+    """Handles serial protocol"""
+
+    def __init__(self):
+        self.ser = None
+
+    def connect(self, address: str, config: dict):
+        try:
+            import serial
+            # Merge defaults with config from INI
+            serial_config = {'baudrate': 9600, 'timeout': 1}
+            serial_config.update(config)
+            self.ser = serial.Serial(port=address, **serial_config)
+        except Exception as e:
+            raise ValueError(f"Failed to connect via serial: {e}")
+
+    def disconnect(self):
+        if self.ser:
+            self.ser.close()
+
+    def send_cmd(self, cmd: str) -> str:
+        if not self.ser:
+            raise RuntimeError("Not connected")
+        self.ser.write((cmd + '\n').encode())
+        response = self.ser.readline().decode().strip()
+        return response
+
+
+# ============================================================================
+# TEST EQUIPMENT BASE CLASSES
+# ============================================================================
+
+class TestEquipment(ABC):
+    """Base class for all test equipment. Hides protocol details."""
+
+    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
+        self.address = address
+        self.model = model
+        self.registry = get_registry()
+        self.conn = connection_handler
+
+        # get connection config
+        conn_type = self.conn.__class__.__name__.replace('Handler', '').lower()
+        self.config = self.registry.get_config_section(model, conn_type)
+
+        # connect
+        print("Initiating TestEquipment connection in __init__()")
+        self.conn.connect(address, self.config)
+        print("done with connection in __init()")
+
+    # @abstractmethod
+    def connect(self):
+        """Establish connection (serial, PyVISA, ethernet, whatever)"""
+        self.conn.connect(self.address, self.config)
+
+    # @abstractmethod
+    def disconnect(self):
+        """Close connection"""
+        self.conn.disconnect()
+
+    @abstractmethod
+    def test_conn(self) -> str:
+        """Test connection, return device ID"""
+        pass
+
+    @abstractmethod
+    def _send_cmd(self, cmd: str) -> str:
+        """Send command and get response. Subclass handles protocol."""
+        pass
+
+    def check_error(self) -> str:
+        """Common error checking - most equipment supports this"""
+        response = self._send_cmd("*ERR?")
+        return response
+
+    def close(self):
+        """Alias for disconnect for backwards compatibility"""
+        self.disconnect()
+
+
+class PowerSupply(TestEquipment):
+    """Abstract power supply - defines PS-specific interface"""
+
+    class PowerSupplyException(Exception):
+        """Exception raised when a call returns an error message"""
+
+        def __init__(self, code, message):
+            self.code = code
+            self.message = message
+            super().__init__(self.message)
+
+        def __str__(self):
+            return f'Error Code: {self.code} -> {self.message}'
+
+    def __init__(self, address: str, model: str, channel_count: int, connection_handler: ConnectionHandler):
+        self.channel_count = channel_count
+        # Calibration defaults
+        self.ch1_v_m = 0.0
+        self.ch1_v_b = 0.0
+        self.ch2_v_m = 0.0
+        self.ch2_v_b = 0.0
+        self.ch1_i_b = 0.0
+        self.ch2_i_b = 0.0
+        super().__init__(address, model, connection_handler)
+
+    def check_channel(self, channel):
+        # TODO: add check for type - int?
+
+        """Validate channel number is within range"""
+        if channel not in range(1, self.channel_count + 1):
+            raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
+
+
+    def set_voltage(self, channel, value):
+        """Set the voltage value for the selected channel with calibration"""
+        cmd = self.registry.get_command(self.model, "command", "set_voltage")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+        return True
+
+    def set_current(self, channel, value):
+        """Set the current value for the selected channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "set_current")
+        cmd = cmd.format(channel=channel, value=value)
+        self.conn.write(cmd)
+
+    def get_set_voltage(self, channel):
+        """Get the set voltage value of the channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_set_voltage")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+        response = self.conn.read()
+        return float(response)
+
+    def get_set_current(self, channel):
+        """Get the set current value of the channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_set_current")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+        response = self.conn.read()
+        return float(response)
+
+    def get_voltage(self, channel):
+        """Get the measured voltage value for a given channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_voltage")
+        cmd = cmd.format(channel=channel)
+        response = self.conn.query(cmd)
+        return float(response)
+
+    def get_current(self, channel):
+        """Get the current value for a given channel with calibration"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_current")
+        cmd = cmd.format(channel=channel)
+        return float(self.conn.query(cmd))
+
+    def get_power(self, channel):
+        """Get the power value for a given channel"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "get_power")
+        cmd = cmd.format(channel=channel)
+        response = self.conn.query(cmd)
+        return float(response)
+
+    def output_on(self, channel):
+        """Turn on the channel output"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "output_on")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+
+    def output_off(self, channel):
+        """Turn off the channel output"""
+        self.check_channel(channel)
+
+        cmd = self.registry.get_command(self.model, "command", "output_off")
+        cmd = cmd.format(channel=channel)
+        self.conn.write(cmd)
+
+    def check_status(self):
+        """Return the top level info about the power supply functional status"""
+        cmd = self.registry.get_command(self.model, "common", "check_status")
+        return self.conn.query(cmd)
+
+
+    def check_error(self):
+        """Check for an error on the system"""
+        cmd = self.registry.get_command(self.model, "command", "check_error")
+        self.conn.write(cmd)
+        response = self.conn.read()
+        resp_list = response.split('  ')
+
+        if resp_list[0] == '0':
+            return False
+
+        resp_list[1] = resp_list[1].rstrip('\n')
+        raise self.PowerSupplyException(resp_list[0], resp_list[1])
+
+
+class DMM(TestEquipment):
+    """Abstract digital multimeter - defines DMM-specific interface"""
+
+    @abstractmethod
+    def set_mode(self, mode: str):
+        pass
+
+    @abstractmethod
+    def set_range(self, rng: int) -> bool:
+        pass
+
+    @abstractmethod
+    def read_voltage(self) -> float:
+        pass
+
+    @abstractmethod
+    def set_range_auto(self):
+        pass
+
+
