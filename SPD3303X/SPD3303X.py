@@ -33,11 +33,12 @@ class SPD3303X(PowerSupply):
     software_version = ""
     hardware_version = ""
 
-    def __init__(self, address, channel_count):
+    def __init__(self, address):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__(address, "SPD3303X", channel_count, PyVISAHandler())
+        super().__init__(address, "SPD3303X", PyVISAHandler())
+        self.channel_count = 2
         # initialize the config parser
         config_file_path = "./EEequipment/SPD3303X/config.ini"
         self.config = configparser.ConfigParser()

@@ -1,13 +1,8 @@
 
 
-# import needed modules
-from pyvisa import ResourceManager
-import pyvisa.errors
-import usb
-import configparser
-
-# import Equipment parent class
+# import user created Equipment modules
 from EEequipment.TestEquipment import PowerSupply
+from EEequipment.TestEquipment import PyVISAHandler
 
 
 class E3640A(PowerSupply):
@@ -15,24 +10,14 @@ class E3640A(PowerSupply):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__(address)
+        super().__init__(address, "E3640A", PyVISAHandler())
 
-        # set up the ResourceManager
-        try:
-            self.rm = ResourceManager('@py')  # use 'pyvisa-py' backend
-        except ValueError:
-            self.rm = ResourceManager()
 
-        # attempt to open instance
-        try:
-            self.inst = self.rm.open_resource(self.address)
-            self.inst.write_termination = '\n'
-            self.inst.read_termination = '\n'
-            self.inst.timeout = 1 * 1000  # NOTE: used to be 2 seconds
-
-            # set default voltages on connect to 0V because I'm dumb and burn my boards too often
-            self.set_voltage(1, 0)
-            self.set_voltage(2, 0)
-        except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
-            print("Error with opening E3640A")
-            print(e)
+    def check_status(self):
+        res = super().check_status()
+        print(f"{self.model} has status of {res}")
+        # TODO: add decoding for the status check
+        status_decode = {
+            "ch1_state": "OFF",
+            "ch2_state": "OFF"}
+        return status_decode

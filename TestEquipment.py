@@ -1,9 +1,8 @@
 
 
 # import needed modules
-from pyvisa import ResourceManager
+import pyvisa
 import usb
-import pyvisa.errors
 import configparser
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -115,14 +114,22 @@ class PyVISAHandler(ConnectionHandler):
     def connect(self, address: str, config: dict):
         # set up the ResourceManager
         try:
-            self.rm = ResourceManager('@py')  # use 'pyvisa-py' backend
+            self.rm = pyvisa.ResourceManager('@py')  # use 'pyvisa-py' backend
         except ValueError:
-            self.rm = ResourceManager()
+            self.rm = pyvisa.ResourceManager()
+
+        # print out info
+        print("PyVISA Version:", pyvisa.__version__)
+        print("Backend:", self.rm.visalib)
 
         # attempt to open instance
         try:
             print("Starting PyVISA ConnectionHandler")
-            self.inst = self.rm.open_resource(address)
+            try:
+                self.inst = self.rm.open_resource(address)
+            except ValueError:
+                self.rm = pyvisa.ResourceManager()
+                self.inst = self.rm.open_resource(address)
 
             if 'timeout' in config:
                 self.inst.timeout = int(config['timeout'])
@@ -136,9 +143,9 @@ class PyVISAHandler(ConnectionHandler):
 
             self.status = True
         except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
-            print("Error with opening PyVISA Handler")
-            self.status = False
-            print(e)
+                print("Error with opening PyVISA Handler")
+                self.status = False
+                print(e)
 
     def disconnect(self):
         if self.inst:
@@ -246,10 +253,9 @@ class TestEquipment(ABC):
         """Close connection"""
         self.conn.disconnect()
 
-    @abstractmethod
     def test_conn(self) -> str:
-        """Test connection, return device ID"""
-        pass
+        cmd = self.registry.get_command(self.model, "command", "query")
+        return self.conn.query(cmd)
 
     def send_cmd(self, cmd: str):
         self.conn.send_cmd(cmd)
@@ -269,22 +275,25 @@ class PowerSupply(TestEquipment):
         def __str__(self):
             return f'Error Code: {self.code} -> {self.message}'
 
-    def __init__(self, address: str, model: str, channel_count: int, connection_handler: ConnectionHandler):
-        self.channel_count = channel_count
+    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
+        self.channel_count = 0
         super().__init__(address, model, connection_handler)
 
     def check_channel(self, channel):
-        # TODO: add check for type - int?
+        if type(self.channel_count) != int:
+            raise PowerSupplyException(self.channel_count, "Channel count must be an integer")
+
+        if self.channel_count == 0:
+            return False
 
         """Validate channel number is within range"""
         if channel not in range(1, self.channel_count + 1):
             raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
 
-
     def set_voltage(self, channel, value):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_voltage")
-        cmd = cmd.format(channel=channel)
+        cmd = cmd.format(channel=channel, value=value)
         self.conn.write(cmd)
         return True
 
@@ -360,9 +369,8 @@ class PowerSupply(TestEquipment):
 
     def check_status(self):
         """Return the top level info about the power supply functional status"""
-        cmd = self.registry.get_command(self.model, "common", "check_status")
+        cmd = self.registry.get_command(self.model, "command", "status")
         return self.conn.query(cmd)
-
 
     def check_error(self):
         """Check for an error on the system"""
@@ -391,9 +399,10 @@ class DMM(TestEquipment):
     def set_range(self, rng: int) -> bool:
         pass
 
-    @abstractmethod
-    def read_voltage(self) -> float:
-        pass
+
+    def read_value(self) -> float:
+        cmd = self.registry.get_command(self.model, "command", "read")
+        return float(self.conn.query(cmd))
 
     @abstractmethod
     def set_range_auto(self):
