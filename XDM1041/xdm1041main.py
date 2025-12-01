@@ -11,8 +11,9 @@ import time
 
 # import user created modules
 from EEequipment.TestEquipment import DMM
-from EEequipment.xdm1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
-from EEequipment.xdm1041 import xdm1041helper
+from EEequipment.XDM1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
+from EEequipment.XDM1041 import xdm1041helper
+from EEequipment.TestEquipment import SerialHandler
 
 
 class XDM1041(DMM):
@@ -44,7 +45,7 @@ class XDM1041(DMM):
             print('')
 
     def __init__(self, serial_device, mode: XDM1041Mode):
-        super().__init__()
+        super().__init__(serial_device, "XDM1041", SerialHandler())
         self.mode = mode
         try:
             self.serial = serial.Serial(

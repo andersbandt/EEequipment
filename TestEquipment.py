@@ -191,6 +191,21 @@ class SerialHandler(ConnectionHandler):
         if self.ser:
             self.ser.close()
 
+    def write(self, cmd: str):
+        self.inst.write(cmd)
+
+    def read(self) -> str:
+        if not self.status:
+            raise RuntimeError("Not connected")
+        return self.inst.read()
+
+    def query(self, cmd: str):
+        if not self.status:
+            raise RuntimeError("Not connected")
+
+        return self.inst.query(cmd)
+
+
     def send_cmd(self, cmd: str) -> str:
         if not self.ser:
             raise RuntimeError("Not connected")
@@ -236,19 +251,8 @@ class TestEquipment(ABC):
         """Test connection, return device ID"""
         pass
 
-    @abstractmethod
-    def _send_cmd(self, cmd: str) -> str:
-        """Send command and get response. Subclass handles protocol."""
-        pass
-
-    def check_error(self) -> str:
-        """Common error checking - most equipment supports this"""
-        response = self._send_cmd("*ERR?")
-        return response
-
-    def close(self):
-        """Alias for disconnect for backwards compatibility"""
-        self.disconnect()
+    def send_cmd(self, cmd: str):
+        self.conn.send_cmd(cmd)
 
 
 class PowerSupply(TestEquipment):
@@ -267,13 +271,6 @@ class PowerSupply(TestEquipment):
 
     def __init__(self, address: str, model: str, channel_count: int, connection_handler: ConnectionHandler):
         self.channel_count = channel_count
-        # Calibration defaults
-        self.ch1_v_m = 0.0
-        self.ch1_v_b = 0.0
-        self.ch2_v_m = 0.0
-        self.ch2_v_b = 0.0
-        self.ch1_i_b = 0.0
-        self.ch2_i_b = 0.0
         super().__init__(address, model, connection_handler)
 
     def check_channel(self, channel):
@@ -383,6 +380,8 @@ class PowerSupply(TestEquipment):
 
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
+    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
+        super().__init__(address, model, connection_handler)
 
     @abstractmethod
     def set_mode(self, mode: str):

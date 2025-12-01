@@ -7,6 +7,8 @@ def parse_voltage_str(voltage_str):
     # Strip out non-numeric characters
     numeric_part = re.sub(r'[^\d.]', '', voltage_str)
     # Convert the numeric part to a float
+    if numeric_part == '':
+        numeric_part = -1
     voltage_float = float(numeric_part)
     # Scale the float value based on the unit
     if "mV" in voltage_str:
