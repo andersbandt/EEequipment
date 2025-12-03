@@ -6,6 +6,7 @@ import usb
 import configparser
 from abc import ABC, abstractmethod
 from pathlib import Path
+import time
 
 
 class CommandRegistry:
@@ -163,7 +164,7 @@ class PyVISAHandler(ConnectionHandler):
 
     def query(self, cmd: str):
         if not self.status:
-            raise RuntimeError("Not connected")
+            raise RuntimeError("Not connected, can't query")
 
         return self.inst.query(cmd)
 
@@ -260,7 +261,24 @@ class TestEquipment(ABC):
     def send_cmd(self, cmd: str):
         self.conn.send_cmd(cmd)
 
+    def benchmark(self, samples, method):
+        start_time = time.perf_counter()
 
+        for _ in range(samples):
+            _ = method()
+
+        end_time = time.perf_counter()
+
+        # Calculate elapsed time and sample rate
+        elapsed = end_time - start_time
+        sample_rate = samples / elapsed
+
+        print(f"Queried {samples} samples in {elapsed:.4f} seconds")
+        print(f"Approximate sample rate: {sample_rate:.2f} Hz")
+        return sample_rate
+
+
+# TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
 class PowerSupply(TestEquipment):
     """Abstract power supply - defines PS-specific interface"""
 
@@ -325,7 +343,7 @@ class PowerSupply(TestEquipment):
         response = self.conn.read()
         return float(response)
 
-    def get_voltage(self, channel):
+    def get_voltage(self, channel=1):
         """Get the measured voltage value for a given channel"""
         self.check_channel(channel)
 
@@ -398,7 +416,6 @@ class DMM(TestEquipment):
     @abstractmethod
     def set_range(self, rng: int) -> bool:
         pass
-
 
     def read_value(self) -> float:
         cmd = self.registry.get_command(self.model, "command", "read")

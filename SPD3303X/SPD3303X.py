@@ -289,7 +289,7 @@ class SPD3303X(PowerSupply):
         decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
 
         decoded_info["timer1"] = "OFF" if not (value & 0x40) else "ON"
-        decoded_info["timer22"] = "OFF" if not (value & 0x80) else "ON"
+        decoded_info["timer2"] = "OFF" if not (value & 0x80) else "ON"
 
         decoded_info["ch1_display"] = "Digital" if not (value & 0x100) else "Waveform"
         decoded_info["ch2_display"] = "Digital" if not (value & 0x200) else "Waveform"
