@@ -10,7 +10,7 @@ class E3640A(PowerSupply):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__(address, "E3640A", PyVISAHandler())
+        super().__init__("E3640A", PyVISAHandler(address))
 
 
     def check_status(self):

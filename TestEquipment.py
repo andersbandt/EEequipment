@@ -4,9 +4,16 @@
 import pyvisa
 import usb
 import configparser
+import abc
 from abc import ABC, abstractmethod
 from pathlib import Path
 import time
+from enum import Enum
+
+# import user created modules
+# from units import ureg as u
+# from util_fns import assume_units, ProxyList
+
 
 
 class CommandRegistry:
@@ -80,7 +87,7 @@ class ConnectionHandler(ABC):
     """Abstract connection handler - defines the protocol"""
 
     @abstractmethod
-    def connect(self, address: str, config: dict):
+    def connect(self, config: dict):
         pass
 
     @abstractmethod
@@ -107,12 +114,13 @@ class ConnectionHandler(ABC):
 class PyVISAHandler(ConnectionHandler):
     """Handles PyVISA protocol"""
 
-    def __init__(self):
+    def __init__(self, address):
+        self.address = address
         self.rm = None
         self.inst = None
         self.status = False
 
-    def connect(self, address: str, config: dict):
+    def connect(self, config: dict):
         # set up the ResourceManager
         try:
             self.rm = pyvisa.ResourceManager('@py')  # use 'pyvisa-py' backend
@@ -127,10 +135,10 @@ class PyVISAHandler(ConnectionHandler):
         try:
             print("Starting PyVISA ConnectionHandler")
             try:
-                self.inst = self.rm.open_resource(address)
+                self.inst = self.rm.open_resource(self.address)
             except ValueError:
                 self.rm = pyvisa.ResourceManager()
-                self.inst = self.rm.open_resource(address)
+                self.inst = self.rm.open_resource(self.address)
 
             if 'timeout' in config:
                 self.inst.timeout = int(config['timeout'])
@@ -179,58 +187,79 @@ class PyVISAHandler(ConnectionHandler):
             return ""
 
 
-class SerialHandler(ConnectionHandler):
-    """Handles serial protocol"""
-
-    def __init__(self):
-        self.ser = None
-
-    def connect(self, address: str, config: dict):
-        try:
-            import serial
-            # Merge defaults with config from INI
-            serial_config = {'baudrate': 9600, 'timeout': 1}
-            serial_config.update(config)
-            self.ser = serial.Serial(port=address, **serial_config)
-        except Exception as e:
-            raise ValueError(f"Failed to connect via serial: {e}")
-
-    def disconnect(self):
-        if self.ser:
-            self.ser.close()
-
-    def write(self, cmd: str):
-        self.inst.write(cmd)
-
-    def read(self) -> str:
-        if not self.status:
-            raise RuntimeError("Not connected")
-        return self.inst.read()
-
-    def query(self, cmd: str):
-        if not self.status:
-            raise RuntimeError("Not connected")
-
-        return self.inst.query(cmd)
-
-
-    def send_cmd(self, cmd: str) -> str:
-        if not self.ser:
-            raise RuntimeError("Not connected")
-        self.ser.write((cmd + '\n').encode())
-        response = self.ser.readline().decode().strip()
-        return response
+# class SerialHandler(ConnectionHandler):
+#     """Handles serial protocol"""
+#
+#     def __init__(self):
+#         self.ser = None
+#
+#     def connect(self, address: str, config: dict):
+#         try:
+#             import serial
+#             # Merge defaults with config from INI
+#             serial_config = {'baudrate': 9600, 'timeout': 1}
+#             serial_config.update(config)
+#             self.ser = serial.Serial(port=address, **serial_config)
+#         except Exception as e:
+#             raise ValueError(f"Failed to connect via serial: {e}")
+#
+#     def disconnect(self):
+#         if self.ser:
+#             self.ser.close()
+#
+#     def write(self, cmd: str):
+#         self.inst.write(cmd)
+#
+#     def read(self) -> str:
+#         if not self.status:
+#             raise RuntimeError("Not connected")
+#         return self.inst.read()
+#
+#     def query(self, cmd: str):
+#         if not self.status:
+#             raise RuntimeError("Not connected")
+#
+#         return self.inst.query(cmd)
+#
+#
+#     def send_cmd(self, cmd: str) -> str:
+#         if not self.ser:
+#             raise RuntimeError("Not connected")
+#         self.ser.write((cmd + '\n').encode())
+#         response = self.ser.readline().decode().strip()
+#         return response
 
 
 # ============================================================================
 # TEST EQUIPMENT BASE CLASSES
 # ============================================================================
 
+
+
+
+class Channel:
+    def __init__(self, parent, index):
+        self.parent = parent
+        self.index = index
+
+    def cmd(self, key, **kwargs):
+        return self.parent.cmd(key, channel=self.index, **kwargs)
+
+    def write(self, key, **kwargs):
+        return self.parent.conn.write(key, channel=self.index, **kwargs)
+
+
+
+
+
+
+
+
+
 class TestEquipment(ABC):
     """Base class for all test equipment. Hides protocol details."""
 
-    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
-        self.address = address
+    def __init__(self, model: str, connection_handler: ConnectionHandler):
         self.model = model
         self.registry = get_registry()
         self.conn = connection_handler
@@ -241,7 +270,7 @@ class TestEquipment(ABC):
 
         # connect
         print("Initiating TestEquipment connection in __init__()")
-        self.conn.connect(address, self.config)
+        self.conn.connect(self.config)
         print("done with connection in __init()")
 
     # @abstractmethod
@@ -256,6 +285,10 @@ class TestEquipment(ABC):
 
     def test_conn(self) -> str:
         cmd = self.registry.get_command(self.model, "command", "query")
+        return self.conn.query(cmd)
+
+    def clear(self):
+        cmd = self.registry.get_command(self.model, "command", "clear")
         return self.conn.query(cmd)
 
     def send_cmd(self, cmd: str):
@@ -279,6 +312,7 @@ class TestEquipment(ABC):
 
 
 # TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
+#   the handling in FunctionGenerator might be the most elegant ...
 class PowerSupply(TestEquipment):
     """Abstract power supply - defines PS-specific interface"""
 
@@ -293,13 +327,13 @@ class PowerSupply(TestEquipment):
         def __str__(self):
             return f'Error Code: {self.code} -> {self.message}'
 
-    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
+    def __init__(self, model: str, connection_handler: ConnectionHandler):
         self.channel_count = 0
-        super().__init__(address, model, connection_handler)
+        super().__init__(model, connection_handler)
 
     def check_channel(self, channel):
-        if type(self.channel_count) != int:
-            raise PowerSupplyException(self.channel_count, "Channel count must be an integer")
+        if not isinstance(channel, int):
+            raise self.PowerSupplyException(self.channel_count, "Channel count must be an integer")
 
         if self.channel_count == 0:
             return False
@@ -308,12 +342,12 @@ class PowerSupply(TestEquipment):
         if channel not in range(1, self.channel_count + 1):
             raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
 
-    def set_voltage(self, channel, value):
+    def set_voltage(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_voltage")
         cmd = cmd.format(channel=channel, value=value)
         self.conn.write(cmd)
-        return True
+        return value
 
     def set_current(self, channel, value):
         """Set the current value for the selected channel"""
@@ -406,8 +440,8 @@ class PowerSupply(TestEquipment):
 
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
-    def __init__(self, address: str, model: str, connection_handler: ConnectionHandler):
-        super().__init__(address, model, connection_handler)
+    def __init__(self, model: str, connection_handler: ConnectionHandler):
+        super().__init__(model, connection_handler)
 
     @abstractmethod
     def set_mode(self, mode: str):
@@ -426,3 +460,54 @@ class DMM(TestEquipment):
         pass
 
 
+
+class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
+    """
+    Abstract base class for function generator instruments.
+
+    All applicable concrete instruments should inherit from this ABC to
+    provide a consistent interface to the user.
+    """
+
+    def __init__(self, model: str, connection_handler: ConnectionHandler):
+        super().__init__(model, connection_handler)
+        self._channel_count = 1
+
+
+    # ENUMS #
+    class VoltageMode(Enum):
+        """
+        Enum containing valid voltage modes for many function generators
+        """
+        peak_to_peak = "VPP"
+        rms = "VRMS"
+        dBm = "DBM"
+
+    class Function(Enum):
+        """
+        Enum containg valid output function modes for many function generators
+        """
+
+        sinusoid = "SIN"
+        square = "SQU"
+        triangle = "TRI"
+        ramp = "RAMP"
+        noise = "NOIS"
+        arbitrary = "ARB"
+
+
+    def set_function(self, function):
+        raise NotImplementedError
+
+
+    def set_frequency(self, value, channel=1):
+        """Set the voltage value for the selected channel with calibration"""
+        cmd = self.registry.get_command(self.model, "command", "set_frequency")
+        cmd = cmd.format(value=value, channel=channel)
+        self.conn.write(cmd)
+
+    def set_duty(self, value, channel=1):
+        """Set the voltage value for the selected channel with calibration"""
+        cmd = self.registry.get_command(self.model, "command", "set_duty")
+        cmd = cmd.format(value=value, channel=channel)
+        self.conn.write(cmd)
