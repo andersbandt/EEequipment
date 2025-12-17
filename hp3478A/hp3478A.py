@@ -12,7 +12,8 @@ import serial
 from EEequipment.TestEquipment import DMM
 from EEequipment.TestEquipment import PyVISAHandler
 
-class Fluke8842A(DMM):
+
+class HP3478A(DMM):
     def __init__(self, address):
             super().__init__("fluke8842A", PyVISAHandler(address))
             self.set_range_auto()

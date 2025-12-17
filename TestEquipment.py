@@ -187,47 +187,66 @@ class PyVISAHandler(ConnectionHandler):
             return ""
 
 
-# class SerialHandler(ConnectionHandler):
-#     """Handles serial protocol"""
-#
-#     def __init__(self):
-#         self.ser = None
-#
-#     def connect(self, address: str, config: dict):
-#         try:
-#             import serial
-#             # Merge defaults with config from INI
-#             serial_config = {'baudrate': 9600, 'timeout': 1}
-#             serial_config.update(config)
-#             self.ser = serial.Serial(port=address, **serial_config)
-#         except Exception as e:
-#             raise ValueError(f"Failed to connect via serial: {e}")
-#
-#     def disconnect(self):
-#         if self.ser:
-#             self.ser.close()
-#
-#     def write(self, cmd: str):
-#         self.inst.write(cmd)
-#
-#     def read(self) -> str:
-#         if not self.status:
-#             raise RuntimeError("Not connected")
-#         return self.inst.read()
-#
-#     def query(self, cmd: str):
-#         if not self.status:
-#             raise RuntimeError("Not connected")
-#
-#         return self.inst.query(cmd)
-#
-#
-#     def send_cmd(self, cmd: str) -> str:
-#         if not self.ser:
-#             raise RuntimeError("Not connected")
-#         self.ser.write((cmd + '\n').encode())
-#         response = self.ser.readline().decode().strip()
-#         return response
+class SerialHandler(ConnectionHandler):
+    """Handles serial protocol"""
+
+    def __init__(self):
+        self.address = None
+        self.inst = None
+        self.status = False
+
+    def connect(self, address: str, config: dict):
+        try:
+            import serial
+            # Merge defaults with config from INI
+            serial_config = {'baudrate': 115200, 'timeout': 1}
+            if config is not None:
+                serial_config.update(config)
+
+            self.inst = serial.Serial(port=address, **serial_config)
+            self.address = address
+            self.status = True
+        except Exception as e:
+            raise ValueError(f"Failed to connect via serial: {e}")
+
+    def disconnect(self):
+        if self.status:
+            self.inst.close()
+
+    def set_timeout(self, timeout):
+        self.inst.timeout = timeout
+
+    def write(self, cmd: str):
+        if self.status:
+            self.inst.write(cmd)
+
+    def read(self, decode=False) -> str:
+        if not self.status:
+            raise RuntimeError("Not connected")
+
+        val = self.inst.readline()
+        if decode:
+            try:
+                val = val.decode('utf-8').strip()
+            except UnicodeDecodeError:
+                print("Failed to decode below line")
+                print(val)
+
+        return val
+
+    def query(self, cmd: str):
+        if not self.status:
+            raise RuntimeError("Not connected")
+
+        return self.inst.query(cmd)
+
+
+    def send_cmd(self, cmd: str) -> str:
+        if not self.inst:
+            raise RuntimeError("Not connected")
+        self.inst.write((cmd + '\n').encode())
+        response = self.inst.readline().decode().strip()
+        return response
 
 
 # ============================================================================
@@ -289,7 +308,7 @@ class TestEquipment(ABC):
 
     def clear(self):
         cmd = self.registry.get_command(self.model, "command", "clear")
-        return self.conn.query(cmd)
+        self.conn.write(cmd)
 
     def send_cmd(self, cmd: str):
         self.conn.send_cmd(cmd)
