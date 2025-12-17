@@ -254,8 +254,6 @@ class SerialHandler(ConnectionHandler):
 # ============================================================================
 
 
-
-
 class Channel:
     def __init__(self, parent, index):
         self.parent = parent
@@ -266,11 +264,6 @@ class Channel:
 
     def write(self, key, **kwargs):
         return self.parent.conn.write(key, channel=self.index, **kwargs)
-
-
-
-
-
 
 
 
@@ -461,6 +454,10 @@ class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
     def __init__(self, model: str, connection_handler: ConnectionHandler):
         super().__init__(model, connection_handler)
+
+    @property
+    def status(self) -> bool:
+        return self.conn.status
 
     @abstractmethod
     def set_mode(self, mode: str):
