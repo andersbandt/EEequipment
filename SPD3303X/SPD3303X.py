@@ -119,7 +119,7 @@ class SPD3303X(PowerSupply):
     def set_raw_voltage(self, channel, value):
         self._send_cmd(f"CH{channel}:VOLTage {value}")
 
-    def set_voltage(self, channel, value):
+    def set_voltage(self, value, channel=1):
         '''
         Set the voltage value for the selected channel
         '''
@@ -147,7 +147,7 @@ class SPD3303X(PowerSupply):
         self.conn.write("INSTrument?")
         return self.conn.read()
 
-    def get_voltage(self, channel):
+    def get_voltage(self, channel=1):
         '''
         Get the voltage value for a given channel
         '''

@@ -336,8 +336,9 @@ class PowerSupply(TestEquipment):
         self.channel_count = 0
         super().__init__(model, connection_handler)
 
-    def check_channel(self, channel):
+    def check_channel(self, channel) -> bool:
         if not isinstance(channel, int):
+            return False
             raise self.PowerSupplyException(self.channel_count, "Channel count must be an integer")
 
         if self.channel_count == 0:
@@ -345,7 +346,10 @@ class PowerSupply(TestEquipment):
 
         """Validate channel number is within range"""
         if channel not in range(1, self.channel_count + 1):
+            return False
             raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
+
+        return True
 
     def set_voltage(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
@@ -382,9 +386,10 @@ class PowerSupply(TestEquipment):
         response = self.conn.read()
         return float(response)
 
-    def get_voltage(self, channel=1):
+    def get_voltage(self, channel):
         """Get the measured voltage value for a given channel"""
-        self.check_channel(channel)
+        if not self.check_channel(channel):
+            return None
 
         cmd = self.registry.get_command(self.model, "command", "get_voltage")
         cmd = cmd.format(channel=channel)
@@ -393,7 +398,8 @@ class PowerSupply(TestEquipment):
 
     def get_current(self, channel):
         """Get the current value for a given channel with calibration"""
-        self.check_channel(channel)
+        if not self.check_channel(channel):
+            return None
 
         cmd = self.registry.get_command(self.model, "command", "get_current")
         cmd = cmd.format(channel=channel)
