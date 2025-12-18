@@ -85,6 +85,7 @@ def get_registry(equipment_dir: str = "EEequipment") -> CommandRegistry:
 
 class ConnectionHandler(ABC):
     """Abstract connection handler - defines the protocol"""
+    status = False
 
     @abstractmethod
     def connect(self, config: dict):
@@ -159,8 +160,10 @@ class PyVISAHandler(ConnectionHandler):
     def disconnect(self):
         if self.inst:
             self.inst.close()
+            self.status = False
         if self.rm:
             self.rm.close()
+            self.status = False
 
     def write(self, cmd: str):
         self.inst.write(cmd)
@@ -212,6 +215,7 @@ class SerialHandler(ConnectionHandler):
     def disconnect(self):
         if self.status:
             self.inst.close()
+            self.status = False
 
     def set_timeout(self, timeout):
         self.inst.timeout = timeout
@@ -253,21 +257,6 @@ class SerialHandler(ConnectionHandler):
 # TEST EQUIPMENT BASE CLASSES
 # ============================================================================
 
-
-class Channel:
-    def __init__(self, parent, index):
-        self.parent = parent
-        self.index = index
-
-    def cmd(self, key, **kwargs):
-        return self.parent.cmd(key, channel=self.index, **kwargs)
-
-    def write(self, key, **kwargs):
-        return self.parent.conn.write(key, channel=self.index, **kwargs)
-
-
-
-
 class TestEquipment(ABC):
     """Base class for all test equipment. Hides protocol details."""
 
@@ -284,6 +273,10 @@ class TestEquipment(ABC):
         print("Initiating TestEquipment connection in __init__()")
         self.conn.connect(self.config)
         print("done with connection in __init()")
+
+    @property
+    def status(self) -> bool:
+        return self.conn.status
 
     # @abstractmethod
     def connect(self):
@@ -455,10 +448,6 @@ class DMM(TestEquipment):
     def __init__(self, model: str, connection_handler: ConnectionHandler):
         super().__init__(model, connection_handler)
 
-    @property
-    def status(self) -> bool:
-        return self.conn.status
-
     @abstractmethod
     def set_mode(self, mode: str):
         pass
@@ -474,7 +463,6 @@ class DMM(TestEquipment):
     @abstractmethod
     def set_range_auto(self):
         pass
-
 
 
 class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
@@ -527,3 +515,16 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         cmd = self.registry.get_command(self.model, "command", "set_duty")
         cmd = cmd.format(value=value, channel=channel)
         self.conn.write(cmd)
+
+
+
+class Channel:
+    def __init__(self, parent, index):
+        self.parent = parent
+        self.index = index
+
+    def cmd(self, key, **kwargs):
+        return self.parent.cmd(key, channel=self.index, **kwargs)
+
+    def write(self, key, **kwargs):
+        return self.parent.conn.write(key, channel=self.index, **kwargs)
