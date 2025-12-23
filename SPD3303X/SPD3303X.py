@@ -8,24 +8,13 @@ import configparser
 
 # import Equipment parent class
 from EEequipment.TestEquipment import PowerSupply
+from EEequipment.TestEquipment import PyVISAHandler
 
 
 class SPD3303X(PowerSupply):
     """
     Class for interacting with the SPD3303 Siglent Power Supply
     """
-    class SPD3303Exception(Exception):
-        '''
-        Exception raised when a call returns an error message
-        '''
-
-        def __init__(self, code, message):
-            self.code = code
-            self.message = message
-            super().__init__(self.message)
-
-        def __str__(self):
-            return f'Error Code: {self.code} -> {self.message}'
 
     ch1_v_m = None
     ch1_v_b = None
@@ -48,74 +37,38 @@ class SPD3303X(PowerSupply):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__(address)
+        super().__init__("SPD3303X", PyVISAHandler(address))
+        self.channel_count = 2
+        # initialize the config parser
+        config_file_path = "./EEequipment/SPD3303X/config.ini"
+        self.config = configparser.ConfigParser()
+        self.config.read(config_file_path)
         self._load_cal()
 
-        # set up the ResourceManager
-        try:
-            self.rm = ResourceManager('@py')  # use 'pyvisa-py' backend
-        except ValueError:
-            self.rm = ResourceManager()
-
-        # attempt to open instance
-        try:
-            self.inst = self.rm.open_resource(self.address)
-            self.inst.write_termination = '\n'
-            self.inst.read_termination = '\n'
-            self.inst.timeout = 1 * 1000  # NOTE: used to be 2 seconds
-
-            # set default voltages on connect to 0V because I'm dumb and burn my boards too often
-            self.set_voltage(1, 0)
-            self.set_voltage(2, 0)
-        except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
-            print("Error with opening SPD3303X")
-            print(e)
-            # TODO: need to determine how to handle self.inst
-            #       right now it's essentially an AttributeError as I don't do anything
-            #       but adding checks for if it's Nonetype everywhere sounds exhausting
-
     def _load_cal(self):
-        # initialize the config parser
-        config_file_path = "./EEequipment/spd3303x/config.ini"
-        config = configparser.ConfigParser()
-        config.read(config_file_path)
-
         # read in parameters from the config file
-        self.ch1_v_m = float(config["CH1"]["v_slope"])
-        self.ch1_v_b = float(config["CH1"]["v_offset"])
-        self.ch1_i_b = float(config["CH1"]["i_offset"])
+        self.ch1_v_m = float(self.config["CH1"]["v_slope"])
+        self.ch1_v_b = float(self.config["CH1"]["v_offset"])
+        self.ch1_i_b = float(self.config["CH1"]["i_offset"])
 
-        self.ch2_v_m = float(config["CH2"]["v_slope"])
-        self.ch2_v_b = float(config["CH2"]["v_offset"])
-        self.ch2_i_b = float(config["CH2"]["i_offset"])
+        self.ch2_v_m = float(self.config["CH2"]["v_slope"])
+        self.ch2_v_b = float(self.config["CH2"]["v_offset"])
+        self.ch2_i_b = float(self.config["CH2"]["i_offset"])
 
     def test_conn(self):
-        print("SPD3303X: issuing IDN? command")
         try:
             idn = self.__get_product_info()
-        except usb.core.USBError:
+        except usb.core.USBError as e:
             print("USB operation to query instrument did not work!")
+            print(f"\t{e}")
             return False
-        print(f"IDN: {idn}")
         return idn
-
-    def connect(self):
-        # TOOD: I want to be able to pass in another port
-        self.inst = self.rm.open_resource(self.address)
-        self.inst.write_termination = '\n'
-        self.inst.read_termination = '\n'
-
-    def disconnect(self):
-        '''
-        Close the socket connection
-        '''
-        self.inst.close()
 
     def __get_product_info(self):
         '''
         Query the manufacturer, product type, series, series no., software version, hardware version
         '''
-        idn = self.inst.query('*IDN?')
+        idn = self.conn.query('*IDN?')
 
         # NOTE: can't uncomment below code because my equipment simply returns 'Siglent Techno' from query
         # resp_arr = idn.split(",")
@@ -130,7 +83,7 @@ class SPD3303X(PowerSupply):
         '''
         Generic call to send command with error checking
         '''
-        self.inst.write(cmd)
+        self.conn.write(cmd)
         self.check_error()
 
     def save(self, file_num):
@@ -140,7 +93,7 @@ class SPD3303X(PowerSupply):
         if file_num not in range(1, self.save_file_count + 1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
-            self.inst.write(f"*SAV {file_num}")
+            self.conn.write(f"*SAV {file_num}")
 
     def recall(self, file_num):
         '''
@@ -149,7 +102,7 @@ class SPD3303X(PowerSupply):
         if file_num not in range(1, self.save_file_count + 1):
             raise self.SPD3303Exception('20', f'Save file must be an integer 1 - {self.save_file_count}')
         else:
-            self.inst.write(f"*RCL {file_num}")
+            self.conn.write(f"*RCL {file_num}")
 
     def select_channel(self, channel):
         '''
@@ -158,7 +111,7 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"INSTrument CH{channel}")
+            self.conn.write(f"INSTrument CH{channel}")
 
     ##################################
     #### get/set functions  ##########
@@ -166,16 +119,15 @@ class SPD3303X(PowerSupply):
     def set_raw_voltage(self, channel, value):
         self._send_cmd(f"CH{channel}:VOLTage {value}")
 
-    def set_voltage(self, channel, value):
-        if type(value) != float:
-            return False
-
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-
+    def set_voltage(self, value, channel=1):
         '''
         Set the voltage value for the selected channel
         '''
+        if type(value) != float:
+            return False
+
+        self.check_channel(channel)
+
         def get_ch_v_cal(ch):
             if ch == 1:
                 return self.ch1_v_m, self.ch1_v_b
@@ -188,102 +140,54 @@ class SPD3303X(PowerSupply):
         self._send_cmd(f"CH{channel}:VOLTage {cal_value}")
         return True
 
-    def set_current(self, channel, value):
-        '''
-        Set the current value for the selected channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self._send_cmd(f"CH{channel}:CURRent {value}")
-
-    def get_set_voltage(self, channel):
-        '''
-        Get the set voltage value of the channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"CH{channel}:VOLTage?")
-
-    def get_set_current(self, channel):
-        '''
-        Get the set current value of the channel
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"CH{channel}:CURRent?")
-
     def get_active_channel(self):
         '''
         Query for the active channel
         '''
-        self.inst.write("INSTrument?")
-        return self.inst.read()
+        self.conn.write("INSTrument?")
+        return self.conn.read()
 
-    def get_voltage(self, channel):
+    def get_voltage(self, channel=1):
         '''
         Get the voltage value for a given channel
         '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"MEASure:VOLTage? CH{channel}")
-            return float(self.inst.read())
+        self.check_channel(channel)
+
+        self.conn.write(f"MEASure:VOLTage? CH{channel}")
+        return float(self.conn.read())
 
     def get_raw_current(self, channel):
-        raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
+        raw_current = float(self.conn.query(f"MEASure:CURRent? CH{channel}"))
         return raw_current
 
     def get_current(self, channel):
         '''
         Get the current value for a given channel
         '''
-        if channel not in range(1, self.channel_count + 1):
-            print(f"trying to get current with bad channel:{channel}")
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            raw_current = float(self.inst.query(f"MEASure:CURRent? CH{channel}"))
-            if channel == 1:
-                return raw_current - self.ch1_i_b
-            elif channel == 2:
-                return raw_current - self.ch2_i_b
+        self.check_channel(channel)
+
+        raw_current = self.get_raw_current(channel)
+        if channel == 1:
+            return raw_current - self.ch1_i_b
+        elif channel == 2:
+            return raw_current - self.ch2_i_b
 
     def get_power(self, channel):
         '''
         Get the power value for a given channel
         '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"MEASure:POWEr? CH{channel}")
-            return float(self.inst.read())
+        self.check_channel(channel)
+
+        self.conn.write(f"MEASure:POWEr? CH{channel}")
+        return float(self.conn.read())
 
     ##################################
     #### control functions  ##########
     ##################################
-    def output_on(self, channel):
-        '''
-        Turn on the channel output
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"OUTPut CH{channel},ON")
-
-    def output_off(self, channel):
-        '''
-        Turn off the channel outputdo
-        '''
-        if channel not in range(1, self.channel_count + 1):
-            raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
-        else:
-            self.inst.write(f"OUTPut CH{channel},OFF")
 
     def set_operation_mode(self, mode):
         if mode == 0 or mode == 1 or mode == 2:
-            self.inst.write(f"OUTPut:TRACK {mode}")
+            self.conn.write(f"OUTPut:TRACK {mode}")
         else:
             raise self.SPD3303Exception('22', f'Invalid Operation Mode')
 
@@ -303,7 +207,7 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"OUTPut:WAVE CH{channel},OFF")
+            self.conn.write(f"OUTPut:WAVE CH{channel},OFF")
 
     def set_timing_parameters(self, channel, group, voltage, current, time):
         '''
@@ -312,7 +216,7 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
+            self.conn.write(f"TIMEr:SET CH{channel},{group},{voltage},{current},{time}")
 
     def query_timing_parameters(self, channel, group):
         '''
@@ -321,8 +225,8 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"TIMEr:SET? CH{channel},{group}")
-            response = self.inst.read()
+            self.conn.write(f"TIMEr:SET? CH{channel},{group}")
+            response = self.conn.read()
             resp_arr = response.split(",")
             return (resp_arr[0], (resp_arr[1], resp_arr[2]))
 
@@ -333,7 +237,7 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"TIMEr CH{channel},ON")
+            self.conn.write(f"TIMEr CH{channel},ON")
 
     def turn_off_timer(self, channel):
         '''
@@ -342,32 +246,25 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.inst.write(f"TIMEr CH{channel},OFF")
+            self.conn.write(f"TIMEr CH{channel},OFF")
 
     ##################################
     #### etc functions  ##############
     ##################################
-    def check_error(self):
+    def check_status(self):
         '''
-        Check for an error on the system
+        Return the top level info about the power supply functional status
         '''
-        self.inst.write("SYSTem:ERRor?")
-        response = self.inst.read()
-        resp_list = response.split('  ')
-        # If error code zero do not raise exception, move along
-        if resp_list[0] == '0':
-            return False
-        # Remove the newline at the end of the message
-        resp_list[1] = resp_list[1][:-1]
-        # Raise a response with the error code and message
-        raise self.SPD3303Exception(resp_list[0], resp_list[1])
+        self.conn.write("SYSTem:STATus?")
+        hex_num = self.conn.read()
+        return self._decode_hex(hex_num)
 
     def check_version(self):
         '''
         Query the software version of the equipment
         '''
-        self.inst.write("SYSTem:VERSion?")
-        return self.inst.read()
+        self.conn.write("SYSTem:VERSion?")
+        return self.conn.read()
 
     def _decode_hex(self, hex_value):
         # Convert hex value to an integer
@@ -392,20 +289,12 @@ class SPD3303X(PowerSupply):
         decoded_info["ch2_state"] = "OFF" if not (value & 0x20) else "ON"
 
         decoded_info["timer1"] = "OFF" if not (value & 0x40) else "ON"
-        decoded_info["timer22"] = "OFF" if not (value & 0x80) else "ON"
+        decoded_info["timer2"] = "OFF" if not (value & 0x80) else "ON"
 
         decoded_info["ch1_display"] = "Digital" if not (value & 0x100) else "Waveform"
         decoded_info["ch2_display"] = "Digital" if not (value & 0x200) else "Waveform"
 
         return decoded_info
-
-    def check_status(self):
-        '''
-        Return the top level info about the power supply functional status
-        '''
-        self.inst.write("SYSTem:STATus?")
-        hex_num = self.inst.read()
-        return self._decode_hex(hex_num)
 
     ##################################
     #### networking functions  #######
@@ -421,8 +310,8 @@ class SPD3303X(PowerSupply):
         '''
         Query the static Internet Protocol (IP) address for the instrument
         '''
-        self.inst.write(f"IPaddr?")
-        return self.inst.read()
+        self.conn.write(f"IPaddr?")
+        return self.conn.read()
 
     def assign_subnet_mask(self, subnet_mask):
         '''
@@ -435,8 +324,8 @@ class SPD3303X(PowerSupply):
         '''
         Query the subnet mask for the instrument
         '''
-        self.inst.write(f"MASKaddr?")
-        return self.inst.read()
+        self.conn.write(f"MASKaddr?")
+        return self.conn.read()
 
     def assign_gate_address(self, gate_addr):
         '''
@@ -450,24 +339,24 @@ class SPD3303X(PowerSupply):
         Query the gate address for the instrument
         WARING: This command is invalid when DHCP is on
         '''
-        self.inst.write(f"GATEaddr?")
-        return self.inst.read()
+        self.conn.write(f"GATEaddr?")
+        return self.conn.read()
 
     def dhcp(self, state):
         '''
         Turn on or off DHCP
         '''
         if state:
-            self.inst.write(f"DHCP ON")
+            self.conn.write(f"DHCP ON")
         else:
-            self.inst.write(f"DHCP OFF")
+            self.conn.write(f"DHCP OFF")
 
     def query_dhcp(self):
         '''
         Query to see the status of DHCP
         '''
-        self.inst.write(f"DHCP?")
-        return self.inst.read()
+        self.conn.write(f"DHCP?")
+        return self.conn.read()
 
     ##################################
     #### calibration functions  ######
@@ -476,17 +365,17 @@ class SPD3303X(PowerSupply):
         #cmd = f"CAL:VOLT ch{channel},{point},{actual_v}"
         cmd = f"CALibration:VOLTage CH{channel},{point},{actual_v}"
         print(cmd)
-        self.inst.write(cmd)
+        self.conn.write(cmd)
 
     def cal_current(self, channel, point, actual_i):
         cmd = f"CAL:CURR CH{channel},{point},{actual_i}"
         print(cmd)
-        self.inst.write(cmd)
+        self.conn.write(cmd)
 
     def cal_recall(self):
         cmd = "*CALRCL"
         print(f"SPD3303X: querying {cmd}")
-        print(self.inst.query("CALRCL"))
+        print(self.conn.query("CALRCL"))
 
     def cal_clear(self, channel, cal_type):
         NR1 = -1  # for "setting" calibration coefficients
@@ -506,12 +395,13 @@ class SPD3303X(PowerSupply):
                 NR1 = 6
                 NR2 = 7
 
-        self.inst.write(f"*CALCLS {NR1}")
-        self.inst.write(f"*CALCLS {NR2}")
+        self.conn.write(f"*CALCLS {NR1}")
+        self.conn.write(f"*CALCLS {NR2}")
         print(f"Cleared calibration with NR values of {NR1},{NR2}")
 
     def cal_clear_all(self):
-        self.inst.write("*CALCLS 8")
+        self.conn.write("*CALCLS 8")
 
     def cal_save(self):
-        self.inst.write("*CALST")
+        self.conn.write("*CALST")
+
