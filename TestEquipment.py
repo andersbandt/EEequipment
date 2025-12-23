@@ -296,6 +296,9 @@ class TestEquipment(ABC):
         cmd = self.registry.get_command(self.model, "command", "clear")
         self.conn.write(cmd)
 
+    def query(self, cmd: str):
+        return self.conn.query(cmd)
+
     def send_cmd(self, cmd: str):
         self.conn.send_cmd(cmd)
 
@@ -311,9 +314,17 @@ class TestEquipment(ABC):
         elapsed = end_time - start_time
         sample_rate = samples / elapsed
 
-        print(f"Queried {samples} samples in {elapsed:.4f} seconds")
-        print(f"Approximate sample rate: {sample_rate:.2f} Hz")
-        return sample_rate
+        result_str = f"Queried {samples} samples in {elapsed:.4f} seconds"
+        result_str += f"\nApproximate sample rate: {sample_rate:.2f} Hz"
+
+        result = {
+            "samples": samples,
+            "elapsed_sec": round(elapsed, 4),
+            "sample_rate_hz": round(sample_rate, 2),
+            "string": result_str,
+        }
+
+        return result
 
 
 # TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
