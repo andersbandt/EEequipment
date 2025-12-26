@@ -55,14 +55,14 @@ class SPD3303X(PowerSupply):
         self.ch2_v_b = float(self.config["CH2"]["v_offset"])
         self.ch2_i_b = float(self.config["CH2"]["i_offset"])
 
-    def test_conn(self):
-        try:
-            idn = self.__get_product_info()
-        except usb.core.USBError as e:
-            print("USB operation to query instrument did not work!")
-            print(f"\t{e}")
-            return False
-        return idn
+    # def test_conn(self):
+    #     try:
+    #         idn = self.__get_product_info()
+    #     except usb.core.USBError as e:
+    #         print("USB operation to query instrument did not work!")
+    #         print(f"\t{e}")
+    #         return False
+    #     return idn
 
     def __get_product_info(self):
         '''
