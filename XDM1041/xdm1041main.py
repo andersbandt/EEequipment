@@ -44,47 +44,31 @@ class XDM1041(DMM):
                 print("{}:{} ".format(key, value), end='')
             print('')
 
-    def __init__(self, serial_device, mode: XDM1041Mode):
-        super().__init__(serial_device, "XDM1041", SerialHandler())
-        self.mode = mode
-        try:
-            self.serial = serial.Serial(
-                port=serial_device,
-                baudrate=115200,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=0.5,
-                xonxoff=False,
-                write_timeout=0.5
-            )
-            self.status = self.serial.is_open
-        except serial.serialutil.SerialException:
-            self.serial = None
-            self.status = False
-
+    def __init__(self, serial_device):
+        super().__init__("XDM1041", SerialHandler(serial_device))
+        # self.mode = mode
         self.logger = logging.getLogger(__name__) # TODO: understand this logger thing
         self.logger.info("Serial port status:{}".format(self.status))
         self.set_range_auto()
 
     # test_conn: queries IDN
-    def test_conn(self) -> str:
-        cmd = str(XDM1041Cmd.IDN)
-        self.send_cmd(cmd)
-        time.sleep(0.2)
-        idn_info = self.read_result()
-        return idn_info
+    # def test_conn(self) -> str:
+    #     cmd = str(XDM1041Cmd.IDN)
+    #     self.send_cmd(cmd)
+    #     time.sleep(0.2)
+    #     idn_info = self.read_result()
+    #     return idn_info
 
-    def connect(self):
-        if self.serial and self.serial.is_open is False:
-            self.serial.open()
+    # def connect(self):
+    #     if self.serial and self.serial.is_open is False:
+    #         self.serial.open()
 
     def send_cmd(self, cmd: str):
         """
         Take one of the string commands and encode it and send it over the wire
         """
         if self.status:
-            self.serial.write(cmd.encode())
+            self.conn.write(cmd)
 
     def read_result(self):
         """
@@ -92,17 +76,11 @@ class XDM1041(DMM):
         just read a line and return
         """
         if self.status:
-            ret_str = self.serial.readline()
-            try:
-                ret_str.decode()
-            except UnicodeDecodeError:
-                return ret_str
-            finally:
-                return ret_str.decode()
+            return self.conn.read()
 
-    def disconnect(self):
-        if self.serial and self.serial.is_open:
-            self.serial.close()
+    # def disconnect(self):
+    #     if self.serial and self.serial.is_open:
+    #         self.serial.close()
 
     def set_range(self, rng: int) -> bool:
         """
