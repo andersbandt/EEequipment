@@ -305,7 +305,11 @@ class TestEquipment(ABC):
 
     def test_conn(self) -> str:
         cmd = self.registry.get_command(self.model, "command", "query")
-        return self.conn.query(cmd)
+        try:
+            res = self.conn.query(cmd)
+        except RuntimeError:
+            return None
+        return res
 
     def clear(self):
         cmd = self.registry.get_command(self.model, "command", "clear")
