@@ -1,8 +1,11 @@
 
 
-# import needed modules
+# import needed connection modules
 import pyvisa
 import usb
+import serial
+
+# import other modules
 import configparser
 import abc
 from abc import ABC, abstractmethod
@@ -13,7 +16,6 @@ from enum import Enum
 # import user created modules
 # from units import ureg as u
 # from util_fns import assume_units, ProxyList
-
 
 
 class CommandRegistry:
@@ -71,7 +73,6 @@ class CommandRegistry:
 
 _registry = None
 
-
 def get_registry(equipment_dir: str = "EEequipment") -> CommandRegistry:
     global _registry
     if _registry is None:
@@ -107,9 +108,9 @@ class ConnectionHandler(ABC):
     def query(self, cmd: str) -> str:
         pass
 
-    @abstractmethod
-    def send_cmd(self, cmd: str) -> str:
-        pass
+    # @abstractmethod
+    # def send_cmd(self, cmd: str) -> str:
+    #     pass
 
 
 class PyVISAHandler(ConnectionHandler):
@@ -179,6 +180,7 @@ class PyVISAHandler(ConnectionHandler):
 
         return self.inst.query(cmd)
 
+    # TODO: really audit how and why I have this function
     def send_cmd(self, cmd: str) -> str:
         if not self.status:
             raise RuntimeError("Not connected")
@@ -193,22 +195,32 @@ class PyVISAHandler(ConnectionHandler):
 class SerialHandler(ConnectionHandler):
     """Handles serial protocol"""
 
-    def __init__(self):
-        self.address = None
+    def __init__(self, address):
+        self.address = address
         self.inst = None
         self.status = False
 
-    def connect(self, address: str, config: dict):
+    def connect(self, config: dict):
+        baudrate = int(config['baudrate'])
+        timeout = float(config['timeout'])
         try:
-            import serial
-            # Merge defaults with config from INI
-            serial_config = {'baudrate': 115200, 'timeout': 1}
-            if config is not None:
-                serial_config.update(config)
-
-            self.inst = serial.Serial(port=address, **serial_config)
-            self.address = address
+            # TODO: add other variables to the XDM1041 [serial] section in the config.ini file
+            self.inst = serial.Serial(
+                port=self.address,
+                baudrate=baudrate,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE,
+                timeout=timeout,
+                xonxoff=False,
+                write_timeout=timeout
+            )
+            self.inst.reset_input_buffer()
             self.status = True
+        except serial.serialutil.SerialException:
+            self.inst = None
+            self.status = False
+
         except Exception as e:
             raise ValueError(f"Failed to connect via serial: {e}")
 
@@ -221,10 +233,12 @@ class SerialHandler(ConnectionHandler):
         self.inst.timeout = timeout
 
     def write(self, cmd: str):
-        if self.status:
-            self.inst.write(cmd)
+        if not self.status:
+            raise RuntimeError("Not connected")
 
-    def read(self, decode=False) -> str:
+        self.inst.write((cmd + "\n").encode())
+
+    def read(self, decode=True) -> str:
         if not self.status:
             raise RuntimeError("Not connected")
 
@@ -238,19 +252,20 @@ class SerialHandler(ConnectionHandler):
 
         return val
 
+    # TODO: this function could probably be defined in the ConnectionHandler class
     def query(self, cmd: str):
         if not self.status:
             raise RuntimeError("Not connected")
 
-        return self.inst.query(cmd)
+        self.write(cmd)
+        return self.read()
 
-
-    def send_cmd(self, cmd: str) -> str:
-        if not self.inst:
-            raise RuntimeError("Not connected")
-        self.inst.write((cmd + '\n').encode())
-        response = self.inst.readline().decode().strip()
-        return response
+    # def send_cmd(self, cmd: str) -> str:
+    #     if not self.inst:
+    #         raise RuntimeError("Not connected")
+    #     self.inst.write((cmd + '\n').encode())
+    #     response = self.inst.readline().decode().strip()
+    #     return response
 
 
 # ============================================================================
@@ -281,8 +296,7 @@ class TestEquipment(ABC):
     # @abstractmethod
     def connect(self, address, config):
         """Establish connection (serial, PyVISA, ethernet, whatever)"""
-        # self.conn.connect(self.address, self.config)
-        self.conn.connect(address, config)
+        self.conn.connect(self.config)
 
     # @abstractmethod
     def disconnect(self):
@@ -362,6 +376,9 @@ class PowerSupply(TestEquipment):
             raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
 
         return True
+
+    def read_value(self) -> float:
+        return self.get_voltage(1)
 
     def set_voltage(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
