@@ -279,9 +279,10 @@ class TestEquipment(ABC):
         return self.conn.status
 
     # @abstractmethod
-    def connect(self):
+    def connect(self, address, config):
         """Establish connection (serial, PyVISA, ethernet, whatever)"""
-        self.conn.connect(self.address, self.config)
+        # self.conn.connect(self.address, self.config)
+        self.conn.connect(address, config)
 
     # @abstractmethod
     def disconnect(self):
