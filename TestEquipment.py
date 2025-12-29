@@ -487,21 +487,43 @@ class DMM(TestEquipment):
     def __init__(self, model: str, connection_handler: ConnectionHandler):
         super().__init__(model, connection_handler)
 
-    @abstractmethod
+    def read_value(self) -> float:
+        cmd = self.registry.get_command(self.model, "command", "read")
+        return float(self.conn.query(cmd))
+
     def set_mode(self, mode: str):
-        pass
+        if mode == "VDC":
+            cmd = self.registry.get_command(self.model, "command", "mode_vdc")
+        elif mode == "VAC":
+            cmd = self.registry.get_command(self.model, "command", "mode_vac")
+        elif mode == "IDC":
+            cmd = self.registry.get_command(self.model, "command", "mode_idc")
+        elif mode == "IAC":
+            cmd = self.registry.get_command(self.model, "command", "mode_iac")
+        elif mode == "RES_2WIRE":
+            cmd = self.registry.get_command(self.model, "command", "mode_res_2")
+        elif mode == "RES_4WIRE":
+            cmd = self.registry.get_command(self.model, "command", "mode_res_4")
+        else:
+            raise BaseException("Unknown mode")
+        self.send_cmd(cmd)
 
     @abstractmethod
     def set_range(self, rng: int) -> bool:
         pass
 
-    def read_value(self) -> float:
-        cmd = self.registry.get_command(self.model, "command", "read")
-        return float(self.conn.query(cmd))
-
-    @abstractmethod
     def set_range_auto(self):
-        pass
+        cmd = self.registry.get_command(self.model, "command", "range_auto")
+        self.send_cmd(cmd)
+
+    def set_sample_speed(self, speed):
+        if speed == "slow":
+            cmd = self.registry.get_command(self.model, "command", "sample_slow")
+        elif speed == "medium":
+            cmd = self.registry.get_command(self.model, "command", "sample_medium")
+        elif speed == "fast":
+            cmd = self.registry.get_command(self.model, "command", "sample_fast")
+        self.send_cmd(cmd)
 
 
 class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):

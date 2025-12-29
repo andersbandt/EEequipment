@@ -51,18 +51,6 @@ class XDM1041(DMM):
         self.logger.info("Serial port status:{}".format(self.status))
         self.set_range_auto()
 
-    # test_conn: queries IDN
-    # def test_conn(self) -> str:
-    #     cmd = str(XDM1041Cmd.IDN)
-    #     self.send_cmd(cmd)
-    #     time.sleep(0.2)
-    #     idn_info = self.read_result()
-    #     return idn_info
-
-    # def connect(self):
-    #     if self.serial and self.serial.is_open is False:
-    #         self.serial.open()
-
     def send_cmd(self, cmd: str):
         """
         Take one of the string commands and encode it and send it over the wire
@@ -77,10 +65,6 @@ class XDM1041(DMM):
         """
         if self.status:
             return self.conn.read()
-
-    # def disconnect(self):
-    #     if self.serial and self.serial.is_open:
-    #         self.serial.close()
 
     def set_range(self, rng: int) -> bool:
         """
@@ -181,21 +165,6 @@ class XDM1041(DMM):
 
     def set_mode_dcv(self):
         self.set_mode(XDM1041Mode.MODE_VOLTAGE_DC)
-
-    def set_sample_speed_slow(self):
-        cmd = str(XDM1041Cmd.RATE_S)
-        self.send_cmd(cmd)
-        time.sleep(0.2)
-
-    def set_sample_speed_med(self):
-        cmd = str(XDM1041Cmd.RATE_M)
-        self.send_cmd(cmd)
-        time.sleep(0.2)
-
-    def set_sample_speed_fast(self):
-        cmd = str(XDM1041Cmd.RATE_F)
-        self.send_cmd(cmd)
-        time.sleep(0.2)
 
     def set_calc_avg(self):
         """
