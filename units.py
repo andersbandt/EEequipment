@@ -3,6 +3,11 @@
 Module containing custom units used by various instruments.
 """
 
+
+# TODO: large. Start thinking about elegant unit handling. Do I need it?
+
+
+
 # IMPORTS #####################################################################
 
 # import pint

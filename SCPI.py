@@ -1,3 +1,7 @@
+
+
+# TODO: extract useful stuff from this document and phase it out
+
 # import needed modules
 import serial
 
