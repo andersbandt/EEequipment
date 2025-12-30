@@ -108,10 +108,6 @@ class ConnectionHandler(ABC):
     def query(self, cmd: str) -> str:
         pass
 
-    # @abstractmethod
-    # def send_cmd(self, cmd: str) -> str:
-    #     pass
-
 
 class PyVISAHandler(ConnectionHandler):
     """Handles PyVISA protocol"""
@@ -180,17 +176,6 @@ class PyVISAHandler(ConnectionHandler):
 
         return self.inst.query(cmd)
 
-    # TODO: really audit how and why I have this function
-    def send_cmd(self, cmd: str) -> str:
-        if not self.status:
-            raise RuntimeError("Not connected")
-
-        if cmd.endswith('?'):
-            return self.inst.query(cmd)
-        else:
-            self.inst.write(cmd)
-            return ""
-
 
 class SerialHandler(ConnectionHandler):
     """Handles serial protocol"""
@@ -252,20 +237,12 @@ class SerialHandler(ConnectionHandler):
 
         return val
 
-    # TODO: this function could probably be defined in the ConnectionHandler class
     def query(self, cmd: str):
         if not self.status:
             raise RuntimeError("Not connected")
 
         self.write(cmd)
         return self.read()
-
-    # def send_cmd(self, cmd: str) -> str:
-    #     if not self.inst:
-    #         raise RuntimeError("Not connected")
-    #     self.inst.write((cmd + '\n').encode())
-    #     response = self.inst.readline().decode().strip()
-    #     return response
 
 
 # ============================================================================
@@ -315,11 +292,14 @@ class TestEquipment(ABC):
         cmd = self.registry.get_command(self.model, "command", "clear")
         self.conn.write(cmd)
 
+    def write(self, cmd: str):
+        self.conn.write(cmd)
+
+    def read(self):
+        return self.conn.read()
+
     def query(self, cmd: str):
         return self.conn.query(cmd)
-
-    def send_cmd(self, cmd: str):
-        self.conn.send_cmd(cmd)
 
     def benchmark(self, samples, method):
         start_time = time.perf_counter()
@@ -506,7 +486,7 @@ class DMM(TestEquipment):
             cmd = self.registry.get_command(self.model, "command", "mode_res_4")
         else:
             raise BaseException("Unknown mode")
-        self.send_cmd(cmd)
+        self.write(cmd)
 
     @abstractmethod
     def set_range(self, rng: int) -> bool:
@@ -514,7 +494,7 @@ class DMM(TestEquipment):
 
     def set_range_auto(self):
         cmd = self.registry.get_command(self.model, "command", "range_auto")
-        self.send_cmd(cmd)
+        self.write(cmd)
 
     def set_sample_speed(self, speed):
         if speed == "slow":
@@ -523,7 +503,7 @@ class DMM(TestEquipment):
             cmd = self.registry.get_command(self.model, "command", "sample_medium")
         elif speed == "fast":
             cmd = self.registry.get_command(self.model, "command", "sample_fast")
-        self.send_cmd(cmd)
+        self.write(cmd)
 
 
 class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
@@ -569,13 +549,13 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_frequency")
         cmd = cmd.format(value=value, channel=channel)
-        self.conn.write(cmd)
+        self.write(cmd)
 
     def set_duty(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_duty")
         cmd = cmd.format(value=value, channel=channel)
-        self.conn.write(cmd)
+        self.write(cmd)
 
 
 
