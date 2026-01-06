@@ -326,6 +326,7 @@ class TestEquipment(ABC):
         return result
 
 
+
 # TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
 #   the handling in FunctionGenerator might be the most elegant ...
 class PowerSupply(TestEquipment):
@@ -443,11 +444,6 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
 
-    def check_status(self):
-        """Return the top level info about the power supply functional status"""
-        cmd = self.registry.get_command(self.model, "command", "status")
-        return self.conn.query(cmd)
-
     def check_error(self):
         """Check for an error on the system"""
         cmd = self.registry.get_command(self.model, "command", "check_error")
@@ -461,11 +457,29 @@ class PowerSupply(TestEquipment):
         resp_list[1] = resp_list[1].rstrip('\n')
         raise self.PowerSupplyException(resp_list[0], resp_list[1])
 
+    @abstractmethod
+    def check_status(self):
+        """Return the top level info about the power supply functional status. This method is abstract because the implementation
+            will vary by a lot between models
+
+        The return is a dict with the following main keys:
+
+        chX_mode: either "CV" or "CC" (constant-voltage or constant-current)
+        chX_state: either "ON" or "OFF"
+
+        Some models may include more elaborate features in which case the following keys will be there
+        channel_mode: "Independent", "Parallel", or "Unknown"
+        timerX: "ON" or "OFF
+        chX_display: "Digital" or "Waveform"
+        """
+        return None
+
 
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
     def __init__(self, model: str, connection_handler: ConnectionHandler):
         super().__init__(model, connection_handler)
+        self.mode = None
 
     def read_value(self) -> float:
         cmd = self.registry.get_command(self.model, "command", "read")
@@ -486,6 +500,7 @@ class DMM(TestEquipment):
             cmd = self.registry.get_command(self.model, "command", "mode_res_4")
         else:
             raise BaseException("Unknown mode")
+        self.mode = mode
         self.write(cmd)
 
     @abstractmethod
@@ -503,6 +518,8 @@ class DMM(TestEquipment):
             cmd = self.registry.get_command(self.model, "command", "sample_medium")
         elif speed == "fast":
             cmd = self.registry.get_command(self.model, "command", "sample_fast")
+        else:
+            raise BaseException("Unknown speed")
         self.write(cmd)
 
 

@@ -40,9 +40,10 @@ class SPD3303X(PowerSupply):
         super().__init__("SPD3303X", PyVISAHandler(address))
         self.channel_count = 2
         # initialize the config parser
-        config_file_path = "./EEequipment/SPD3303X/config.ini"
-        self.config = configparser.ConfigParser()
-        self.config.read(config_file_path)
+        # TODO: eliminate this hardcode and abstract it
+        # config_file_path = "./EEequipment/SPD3303X/config.ini"
+        # self.config = configparser.ConfigParser()
+        # self.config.read(config_file_path)
         self._load_cal()
 
     def _load_cal(self):
@@ -246,8 +247,8 @@ class SPD3303X(PowerSupply):
         '''
         Return the top level info about the power supply functional status
         '''
-        self.conn.write("SYSTem:STATus?")
-        hex_num = self.conn.read()
+        cmd = self.registry.get_command(self.model, "command", "status")
+        hex_num = self.conn.query(cmd)
         return self._decode_hex(hex_num)
 
     def check_version(self):
@@ -257,16 +258,16 @@ class SPD3303X(PowerSupply):
         self.conn.write("SYSTem:VERSion?")
         return self.conn.read()
 
+    # TODO: somehow standardize this? The process of mapping bits to table values?
     def _decode_hex(self, hex_value):
         # Convert hex value to an integer
         value = int(hex_value, 16)
 
         # Dictionary to store decoded states
-        decoded_info = {}
+        decoded_info = {"ch1_mode": "CV" if not (value & 0x01) else "CC",
+                        "ch2_mode": "CV" if not (value & 0x02) else "CC"}
 
         # Decode each bit according to the given states
-        decoded_info["ch1_mode"] = "CV" if not (value & 0x01) else "CC"
-        decoded_info["ch2_mode"] = "CV" if not (value & 0x02) else "CC"
 
         mode_bits = (value >> 2) & 0x03
         if mode_bits == 0x01:

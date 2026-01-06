@@ -46,9 +46,6 @@ class XDM1041(DMM):
 
     def __init__(self, serial_device):
         super().__init__("XDM1041", SerialHandler(serial_device))
-        # self.mode = mode
-        self.logger = logging.getLogger(__name__) # TODO: understand this logger thing
-        self.logger.info("Serial port status:{}".format(self.status))
         self.set_range_auto()
 
     def send_cmd(self, cmd: str):
@@ -79,19 +76,15 @@ class XDM1041(DMM):
                                 CAP 1(50nF), 2(500nF), 3(5uF), 4(50uF), 5(500uF), 6(5mF) ,7(50mF)
                                 TEMP 1(KITS90),2(PT100)
         """
-        if self.mode not in XDM1041.range_ref_dict:
-            self.logger.error("Selected mode:{} does not support range selection!".format(self.mode.name))
-            return False
-
         range_dict = XDM1041.range_ref_dict[self.mode]
         if rng not in range_dict.keys():
-            self.logger.error("Selected range: {} is not supported!".format(rng))
             return False
 
         # we made it, set the range
         cmd = str(XDM1041Cmd.SET_RANGE).format(rng)
         print(f"\tsetting DMM range with cmd: {cmd}")
         self.send_cmd(cmd)
+        return True
 
     def set_range_auto(self):
         cmd = str(XDM1041Cmd.SET_AUTO_MODE)

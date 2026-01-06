@@ -15,7 +15,10 @@ class E3640A(PowerSupply):
 
 
     def check_status(self):
-        status = super().check_status()
+        status = int(super().check_status())
+        ch1_mode = "CV" if not (status & 0x01) else "CC"
+
+        # get output state
         cmd = self.registry.get_command(self.model, "command", "output_state")
         ch1_state = self.conn.query(cmd)
         if ch1_state == "1":
@@ -23,9 +26,11 @@ class E3640A(PowerSupply):
         else:
             ch1_state = "OFF"
 
+        # place everything in a dict
         status_decode = {
             "status": status,
-            "ch1_state": ch1_state
+            "ch1_state": ch1_state,
+            "ch1_mode": ch1_mode
         }
         import pprint
         pprint.pprint(status_decode)

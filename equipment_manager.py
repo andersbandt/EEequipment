@@ -1,10 +1,19 @@
 
 
-
+# import needed EEequipment modules
 import EEequipment
 from EEequipment.TestEquipment import TestEquipment, PowerSupply
 from EEequipment.TestEquipment import DMM
+
+# import needed modules
+import usb
+import pyvisa.errors
 import inspect, pkgutil, importlib
+
+
+
+# setup common connection errors
+COMMUNICATION_ERRORS = (AttributeError, pyvisa.errors.VisaIOError, usb.USBError)
 
 
 ALL_BASES = (TestEquipment,)  # add DMMBase, PowerSupplyBase, etc., if available
