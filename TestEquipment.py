@@ -157,10 +157,9 @@ class PyVISAHandler(ConnectionHandler):
     def disconnect(self):
         if self.inst:
             self.inst.close()
-            self.status = False
         if self.rm:
             self.rm.close()
-            self.status = False
+        self.status = False
 
     def write(self, cmd: str):
         self.inst.write(cmd)
@@ -189,7 +188,6 @@ class SerialHandler(ConnectionHandler):
         baudrate = int(config['baudrate'])
         timeout = float(config['timeout'])
         try:
-            # TODO: add other variables to the XDM1041 [serial] section in the config.ini file
             self.inst = serial.Serial(
                 port=self.address,
                 baudrate=baudrate,
@@ -472,7 +470,6 @@ class PowerSupply(TestEquipment):
         timerX: "ON" or "OFF
         chX_display: "Digital" or "Waveform"
         """
-        return None
 
 
 class DMM(TestEquipment):
@@ -503,6 +500,10 @@ class DMM(TestEquipment):
         self.mode = mode
         self.write(cmd)
 
+    def get_mode(self):
+        cmd = self.registry.get_command(self.model, "command", "get_mode")
+        return self.query(cmd)
+
     @abstractmethod
     def set_range(self, rng: int) -> bool:
         pass
@@ -510,6 +511,10 @@ class DMM(TestEquipment):
     def set_range_auto(self):
         cmd = self.registry.get_command(self.model, "command", "range_auto")
         self.write(cmd)
+
+    def get_range(self):
+        cmd = self.registry.get_command(self.model, "command", "get_range")
+        return self.query(cmd)
 
     def set_sample_speed(self, speed):
         if speed == "slow":

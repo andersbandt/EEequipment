@@ -39,11 +39,7 @@ class SPD3303X(PowerSupply):
         '''
         super().__init__("SPD3303X", PyVISAHandler(address))
         self.channel_count = 2
-        # initialize the config parser
-        # TODO: eliminate this hardcode and abstract it
-        # config_file_path = "./EEequipment/SPD3303X/config.ini"
-        # self.config = configparser.ConfigParser()
-        # self.config.read(config_file_path)
+        # load calibration constants
         self._load_cal()
 
     def _load_cal(self):

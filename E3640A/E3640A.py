@@ -15,7 +15,8 @@ class E3640A(PowerSupply):
 
 
     def check_status(self):
-        status = int(super().check_status())
+        cmd = self.registry.get_command(self.model, "command", "status")
+        status = int(self.conn.query(cmd))
         ch1_mode = "CV" if not (status & 0x01) else "CC"
 
         # get output state

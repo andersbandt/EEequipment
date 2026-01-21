@@ -5,7 +5,7 @@ Module containing custom units used by various instruments.
 
 
 # TODO: large. Start thinking about elegant unit handling. Do I need it?
-
+#   the only use case I can think of is possibly for logging purposes
 
 
 # IMPORTS #####################################################################
