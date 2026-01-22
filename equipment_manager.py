@@ -3,7 +3,7 @@
 # import needed EEequipment modules
 import EEequipment
 from EEequipment.TestEquipment import TestEquipment, PowerSupply
-from EEequipment.TestEquipment import DMM
+from EEequipment.TestEquipment import DMM, FunctionGenerator
 
 # import needed modules
 import usb
@@ -19,6 +19,7 @@ COMMUNICATION_ERRORS = (AttributeError, pyvisa.errors.VisaIOError, usb.USBError)
 ALL_BASES = (TestEquipment,)  # add DMMBase, PowerSupplyBase, etc., if available
 DMM_BASES = (DMM,)  # add DMMBase, PowerSupplyBase, etc., if available
 PS_BASES = (PowerSupply,)  # add DMMBase, PowerSupplyBase, etc., if available
+FG_BASES = (FunctionGenerator,)
 
 
 def get_instruments(base):
@@ -29,6 +30,8 @@ def get_instruments(base):
         ALLOWED_BASES = PS_BASES
     elif base == "dmm":
         ALLOWED_BASES = DMM_BASES
+    elif base == "fg":
+        ALLOWED_BASES = FG_BASES
 
     reg = {}
     base_pkg = EEequipment.__name__
