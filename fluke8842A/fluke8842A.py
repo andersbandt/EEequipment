@@ -4,9 +4,6 @@
 @brief    class for talking to a Fluke fluke8842A
 """
 
-# import modules
-import logging
-import serial
 
 # import user created modules
 from EEequipment.TestEquipment import DMM

@@ -11,7 +11,6 @@ import pyvisa.errors
 import inspect, pkgutil, importlib
 
 
-
 # setup common connection errors
 COMMUNICATION_ERRORS = (AttributeError, pyvisa.errors.VisaIOError, usb.USBError)
 

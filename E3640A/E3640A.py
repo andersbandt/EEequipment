@@ -16,7 +16,13 @@ class E3640A(PowerSupply):
 
     def check_status(self):
         cmd = self.registry.get_command(self.model, "command", "status")
-        status = int(self.conn.query(cmd))
+
+        try:
+            status = int(self.conn.query(cmd))
+        except ValueError:
+            return {}
+            # TODO: add some error handling if this thing can't be an int. Thinking of adding some error flag to the status_decode dict?
+
         ch1_mode = "CV" if not (status & 0x01) else "CC"
 
         # get output state

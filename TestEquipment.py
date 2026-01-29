@@ -268,12 +268,10 @@ class TestEquipment(ABC):
     def status(self) -> bool:
         return self.conn.status
 
-    # @abstractmethod
     def connect(self, address, config):
         """Establish connection (serial, PyVISA, ethernet, whatever)"""
         self.conn.connect(self.config)
 
-    # @abstractmethod
     def disconnect(self):
         """Close connection"""
         self.conn.disconnect()
@@ -283,7 +281,7 @@ class TestEquipment(ABC):
         try:
             res = self.conn.query(cmd)
         except RuntimeError:
-            return None
+            return ""
         return res
 
     def clear(self):
@@ -322,7 +320,6 @@ class TestEquipment(ABC):
         }
 
         return result
-
 
 
 # TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
@@ -581,6 +578,8 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
 
 
 
+
+# TODO: add multi-channel support NOW before it starts getting crazy optimizing for single channel
 class Channel:
     def __init__(self, parent, index):
         self.parent = parent
