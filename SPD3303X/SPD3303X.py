@@ -254,7 +254,6 @@ class SPD3303X(PowerSupply):
         self.conn.write("SYSTem:VERSion?")
         return self.conn.read()
 
-    # TODO: somehow standardize this? The process of mapping bits to table values?
     def _decode_hex(self, hex_value):
         # Convert hex value to an integer
         value = int(hex_value, 16)
