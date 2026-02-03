@@ -240,12 +240,33 @@ class SPD3303X(PowerSupply):
     #### etc functions  ##############
     ##################################
     def check_status(self):
-        '''
-        Return the top level info about the power supply functional status
-        '''
+        """
+        Return the status information for the power supply.
+        Returns a standardized dictionary with ch1/ch2 fields and error handling.
+        """
         cmd = self.registry.get_command(self.model, "command", "status")
-        hex_num = self.conn.query(cmd)
-        return self._decode_hex(hex_num)
+
+        try:
+            hex_num = self.conn.query(cmd)
+            decoded = self._decode_hex(hex_num)
+            decoded["status"] = hex_num
+            decoded["error"] = None
+            return decoded
+        except Exception as e:
+            # Return dict with error field when status query fails
+            return {
+                "status": None,
+                "error": f"Failed to query status: {str(e)}",
+                "ch1_state": None,
+                "ch1_mode": None,
+                "ch2_state": None,
+                "ch2_mode": None,
+                "channel_mode": None,
+                "timer1": None,
+                "timer2": None,
+                "ch1_display": None,
+                "ch2_display": None
+            }
 
     def check_version(self):
         '''
