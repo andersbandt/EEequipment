@@ -360,6 +360,7 @@ class PowerSupply(TestEquipment):
     def read_value(self) -> float:
         return self.get_voltage(1)
 
+    # TODO: yeah it makes no sense channel is required everywhere BUT here
     def set_voltage(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_voltage")
