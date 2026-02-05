@@ -11,9 +11,6 @@ import pyvisa.errors
 import inspect, pkgutil, importlib
 
 
-# TODO: Claude should somehow save the last used equipment, same as I save last used port
-
-
 # setup common connection errors
 COMMUNICATION_ERRORS = (AttributeError, pyvisa.errors.VisaIOError, usb.USBError)
 

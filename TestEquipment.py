@@ -322,8 +322,6 @@ class TestEquipment(ABC):
         return result
 
 
-# TODO: add more elegant channel input handling. If only one channel, don't need to input anything. > 1 yes
-#   the handling in FunctionGenerator might be the most elegant ...
 class PowerSupply(TestEquipment):
     """Abstract power supply - defines PS-specific interface"""
 
@@ -360,7 +358,6 @@ class PowerSupply(TestEquipment):
     def read_value(self) -> float:
         return self.get_voltage(1)
 
-    # TODO: yeah it makes no sense channel is required everywhere BUT here
     def set_voltage(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_voltage")
@@ -368,7 +365,7 @@ class PowerSupply(TestEquipment):
         self.conn.write(cmd)
         return value
 
-    def set_current(self, channel, value):
+    def set_current(self, value, channel=1):
         """Set the current value for the selected channel"""
         self.check_channel(channel)
 
@@ -376,7 +373,7 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel, value=value)
         self.conn.write(cmd)
 
-    def get_set_voltage(self, channel):
+    def get_set_voltage(self, channel=1):
         """Get the set voltage value of the channel"""
         self.check_channel(channel)
 
@@ -386,7 +383,7 @@ class PowerSupply(TestEquipment):
         response = self.conn.read()
         return float(response)
 
-    def get_set_current(self, channel):
+    def get_set_current(self, channel=1):
         """Get the set current value of the channel"""
         self.check_channel(channel)
 
@@ -396,7 +393,7 @@ class PowerSupply(TestEquipment):
         response = self.conn.read()
         return float(response)
 
-    def get_voltage(self, channel):
+    def get_voltage(self, channel=1):
         """Get the measured voltage value for a given channel"""
         if not self.check_channel(channel):
             return None
@@ -406,7 +403,7 @@ class PowerSupply(TestEquipment):
         response = self.conn.query(cmd)
         return float(response)
 
-    def get_current(self, channel):
+    def get_current(self, channel=1):
         """Get the current value for a given channel with calibration"""
         if not self.check_channel(channel):
             return None
@@ -415,7 +412,7 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         return float(self.conn.query(cmd))
 
-    def get_power(self, channel):
+    def get_power(self, channel=1):
         """Get the power value for a given channel"""
         self.check_channel(channel)
 
@@ -424,7 +421,7 @@ class PowerSupply(TestEquipment):
         response = self.conn.query(cmd)
         return float(response)
 
-    def output_on(self, channel):
+    def output_on(self, channel=1):
         """Turn on the channel output"""
         self.check_channel(channel)
 
@@ -432,7 +429,7 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
 
-    def output_off(self, channel):
+    def output_off(self, channel=1):
         """Turn off the channel output"""
         self.check_channel(channel)
 
@@ -564,7 +561,6 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
     def set_function(self, function):
         raise NotImplementedError
 
-
     def set_frequency(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
         cmd = self.registry.get_command(self.model, "command", "set_frequency")
@@ -572,15 +568,26 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         self.write(cmd)
 
     def set_duty(self, value, channel=1):
-        """Set the voltage value for the selected channel with calibration"""
+        """Set the duty cycle for the selected channel"""
         cmd = self.registry.get_command(self.model, "command", "set_duty")
+        cmd = cmd.format(value=value, channel=channel)
+        self.write(cmd)
+
+    def set_offset(self, value, channel=1):
+        """Set the DC offset for the selected channel"""
+        cmd = self.registry.get_command(self.model, "command", "set_offset")
+        cmd = cmd.format(value=value, channel=channel)
+        self.write(cmd)
+
+    def set_amplitude(self, value, channel=1):
+        """Set the amplitude for the selected channel"""
+        cmd = self.registry.get_command(self.model, "command", "set_amplitude")
         cmd = cmd.format(value=value, channel=channel)
         self.write(cmd)
 
 
 
-
-# TODO: add multi-channel support NOW before it starts getting crazy optimizing for single channel
+# Channel subclass approach for future v2.0 implementation
 class Channel:
     def __init__(self, parent, index):
         self.parent = parent
