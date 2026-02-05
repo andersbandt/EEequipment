@@ -3,13 +3,29 @@ This repo will be for controlling various EE equipment
 I will try to keep things standard, but due to instrument differences code implementations may be different between equipment
 
 
-## Supported instruments
+## Supported Equipment
 
-- Siglent SPD3303X precision lab power supply
-- OWON XDM1041 digital multimeter
-- Texas Instruments XDS110 debug probe
-- USB controlled relay module (cheap from Aliexpress)
+### Power Supplies
+- ✅ Siglent SPD3303X (PyVISA)
+- ✅ HP E3640A (PyVISA)
 
+### Digital Multimeters
+- ✅ OWON XDM1041 (Serial)
+- ✅ Fluke 8842A (PyVISA)
+- ✅ HP 3478A (PyVISA)
+
+### Function Generators
+- ✅ Agilent 33120A (PyVISA)
+
+### Debug Probes
+- ✅ TI XDS110 JTAG/SWD
+
+### USB Devices
+- ✅ Generic serial ports (pyserial)
+- ✅ USB relay controllers (pyusb)
+
+### Want to add your equipment?
+Check the equipment submodule README or submit an issue!
 
 
 
