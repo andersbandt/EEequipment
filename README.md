@@ -3,26 +3,40 @@ This repo will be for controlling various EE equipment
 I will try to keep things standard, but due to instrument differences code implementations may be different between equipment
 
 
-## Supported Equipment
+Below is a list of currently supported standard test equipment.
 
-### Power Supplies
-- ✅ Siglent SPD3303X (PyVISA)
-- ✅ HP E3640A (PyVISA)
+- **Power Supplies**: Siglent SPD3303X, HP E3640A
+- **Digital Multimeters**: OWON XDM1041, Fluke 8842A, HP 3478A
+- **Function Generators**: Agilent 33120A
 
-### Digital Multimeters
-- ✅ OWON XDM1041 (Serial)
-- ✅ Fluke 8842A (PyVISA)
-- ✅ HP 3478A (PyVISA)
+Adding new equipment should be very straightforward. Each piece of test equipment will have a `config.ini` file.
 
-### Function Generators
-- ✅ Agilent 33120A (PyVISA)
+For example check out a snippet of the config file for the SPD3303X power supply
 
-### Debug Probes
-- ✅ TI XDS110 JTAG/SWD
+```ini
+[pyvisa]
+timeout = 1000
+write_termination = \n
+read_termination = \n
 
-### USB Devices
-- ✅ Generic serial ports (pyserial)
-- ✅ USB relay controllers (pyusb)
+[command]
+set_voltage = CH{channel}:VOLTage {value}
+set_current = CH{channel}:CURRent {value}
+get_set_voltage = CH{channel}:VOLTage?
+get_set_current = CH{channel}:CURRent?
+```
+You simply can copy one of the already created templates and replace the actual commands with whatever your programming manual has listed.
+
+There is also some capability for control of non-standard test equipment
+
+- **Debug Probes**: TI XDS110 JTAG/SWD
+- **USB Devices**: Serial ports, relay controllers
+
+The USB relay controller is a specific cheap model readily available on Aliexpress.
+
+
+
+
 
 ### Want to add your equipment?
 Check the equipment submodule README or submit an issue!

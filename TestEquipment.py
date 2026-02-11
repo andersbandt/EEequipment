@@ -586,6 +586,17 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         self.write(cmd)
 
 
+class Oscilloscope(TestEquipment, metaclass=abc.ABCMeta):
+    def __init__(self, model: str, connection_handler: ConnectionHandler):
+        super().__init__(model, connection_handler)
+        self._channel_count = 1
+
+
+    def set_function(self, function):
+        raise NotImplementedError
+
+
+
 
 # Channel subclass approach for future v2.0 implementation
 class Channel:

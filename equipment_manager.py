@@ -2,8 +2,8 @@
 
 # import needed EEequipment modules
 import EEequipment
-from EEequipment.TestEquipment import TestEquipment, PowerSupply
-from EEequipment.TestEquipment import DMM, FunctionGenerator
+from EEequipment.TestEquipment import TestEquipment
+from EEequipment.TestEquipment import DMM, PowerSupply, FunctionGenerator, Oscilloscope
 
 # import needed modules
 import usb
@@ -15,10 +15,11 @@ import inspect, pkgutil, importlib
 COMMUNICATION_ERRORS = (AttributeError, pyvisa.errors.VisaIOError, usb.USBError)
 
 
-ALL_BASES = (TestEquipment,)  # add DMMBase, PowerSupplyBase, etc., if available
-DMM_BASES = (DMM,)  # add DMMBase, PowerSupplyBase, etc., if available
-PS_BASES = (PowerSupply,)  # add DMMBase, PowerSupplyBase, etc., if available
+ALL_BASES = (TestEquipment,)
+DMM_BASES = (DMM,)
+PS_BASES = (PowerSupply,)
 FG_BASES = (FunctionGenerator,)
+OSC_BASES = (Oscilloscope,)
 
 
 def get_instruments(base):
@@ -31,6 +32,8 @@ def get_instruments(base):
         ALLOWED_BASES = DMM_BASES
     elif base == "fg":
         ALLOWED_BASES = FG_BASES
+    elif base == "osc":
+        ALLOWED_BASES = OSC_BASES
 
     reg = {}
     base_pkg = EEequipment.__name__
