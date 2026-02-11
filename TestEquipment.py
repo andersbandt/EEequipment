@@ -51,18 +51,37 @@ class CommandRegistry:
             print(f"Loaded commands for '{model_name}' from {config_file}")
 
     def get_command(self, model: str, section: str, cmd_name: str) -> str:
+        config_path = self.equipment_dir / model / "config.ini"
         if model not in self.commands:
-            raise ValueError(f"Model not found: {model}")
+            msg = f"Model '{model}' not found in registry. Expected config at: {config_path}"
+            print(f"[CommandRegistry] ERROR: {msg}")
+            raise ValueError(msg)
         if section not in self.commands[model]:
-            raise ValueError(f"Section '{section}' not found for {model}")
+            available = list(self.commands[model].keys())
+            msg = (f"Section '[{section}]' not found in {config_path}. "
+                   f"Available sections: {available}")
+            print(f"[CommandRegistry] ERROR: {msg}")
+            raise ValueError(msg)
         if cmd_name not in self.commands[model][section]:
-            raise ValueError(f"Command '{cmd_name}' not found in {model}:{section}")
+            available = list(self.commands[model][section].keys())
+            msg = (f"Command '{cmd_name}' not found in [{section}] of {config_path}. "
+                   f"Add '{cmd_name} = <SCPI command>' to the [{section}] section. "
+                   f"Available commands: {available}")
+            print(f"[CommandRegistry] ERROR: {msg}")
+            raise ValueError(msg)
 
         return self.commands[model][section][cmd_name]
 
     def format_command(self, model: str, section: str, cmd_name: str, **kwargs) -> str:
         cmd_template = self.get_command(model, section, cmd_name)
-        return cmd_template.format(**kwargs)
+        try:
+            return cmd_template.format(**kwargs)
+        except KeyError as e:
+            config_path = self.equipment_dir / model / "config.ini"
+            msg = (f"Missing placeholder {e} when formatting '{cmd_name}' in {config_path}. "
+                   f"Template: '{cmd_template}', provided keys: {list(kwargs.keys())}")
+            print(f"[CommandRegistry] ERROR: {msg}")
+            raise ValueError(msg)
 
     def get_config_section(self, model: str, section: str) -> dict:
         """Get entire config section (for connection params, etc)"""
@@ -587,13 +606,56 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
 
 
 class Oscilloscope(TestEquipment, metaclass=abc.ABCMeta):
+    """Abstract base class for oscilloscope instruments."""
+
     def __init__(self, model: str, connection_handler: ConnectionHandler):
+        self.channel_count = 1
         super().__init__(model, connection_handler)
-        self._channel_count = 1
 
+    @abstractmethod
+    def check_channel(self, channel):
+        pass
 
-    def set_function(self, function):
-        raise NotImplementedError
+    # --- Acquisition ---
+    @abstractmethod
+    def run(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
+
+    @abstractmethod
+    def single(self):
+        pass
+
+    # --- Measurements ---
+    @abstractmethod
+    def measure_frequency(self, channel):
+        pass
+
+    @abstractmethod
+    def measure_vpp(self, channel):
+        pass
+
+    # --- Channel ---
+    @abstractmethod
+    def set_scale(self, channel, scale):
+        pass
+
+    @abstractmethod
+    def set_offset(self, channel, offset):
+        pass
+
+    # --- Trigger ---
+    @abstractmethod
+    def set_trigger_level(self, channel, level):
+        pass
+
+    # --- Waveform ---
+    @abstractmethod
+    def get_waveform_data(self, channel, points=0, fmt="BYTE"):
+        pass
 
 
 
