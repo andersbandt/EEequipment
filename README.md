@@ -2,12 +2,32 @@ This repo will be for controlling various EE equipment
 
 I will try to keep things standard, but due to instrument differences code implementations may be different between equipment
 
-
+## Supported Equipment
 Below is a list of currently supported standard test equipment.
 
 - **Power Supplies**: Siglent SPD3303X, HP E3640A
 - **Digital Multimeters**: OWON XDM1041, Fluke 8842A, HP 3478A
 - **Function Generators**: Agilent 33120A
+
+There is also some capability for control of non-standard test equipment
+
+- **Debug Probes**: TI XDS110 JTAG/SWD
+- **USB Devices**: Serial ports, relay controllers
+
+The USB relay controller is a specific cheap model readily available on Aliexpress.
+
+
+### Communication backends
+
+These are the communication backends currently used by the pieces of equipment
+
+- `usb` (USB relay)
+- `pyvisa` (SPD3303X)
+- `serial` (XDM1041)
+- `os` executing scripts (XDS110)
+
+
+## Adding new equipment
 
 Adding new equipment should be very straightforward. Each piece of test equipment will have a `config.ini` file.
 
@@ -27,27 +47,9 @@ get_set_current = CH{channel}:CURRent?
 ```
 You simply can copy one of the already created templates and replace the actual commands with whatever your programming manual has listed.
 
-There is also some capability for control of non-standard test equipment
-
-- **Debug Probes**: TI XDS110 JTAG/SWD
-- **USB Devices**: Serial ports, relay controllers
-
-The USB relay controller is a specific cheap model readily available on Aliexpress.
-
-
-
-
 
 ### Want to add your equipment?
-Check the equipment submodule README or submit an issue!
+Check the `CONTRIBUTING.md` file! It has more detail about adding equipment
 
 
 
-## Communication backends
-
-These are the communication backends currently used by the pieces of equipment
-
-- `usb` (USB relay)
-- `pyvisa` (SPD3303X)
-- `serial` (XDM1041)
-- `os` executing scripts (XDS110)
