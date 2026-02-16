@@ -21,37 +21,37 @@ class XDM1041Mode(Enum):
     def __str__(self):
 
         if self.value == XDM1041Mode.MODE_VOLTAGE_DC.value:
-            return "CONF:VOLT:DC\n"
+            return "CONF:VOLT:DC"
 
         elif self.value == XDM1041Mode.MODE_VOLTAGE_AC.value:
-            return "CONF:VOLT:AC\n"
+            return "CONF:VOLT:AC"
 
         elif self.value == XDM1041Mode.MODE_CURRENT_DC.value:
-            return "CONF:CURR:DC\n"
+            return "CONF:CURR:DC"
 
         elif self.value == XDM1041Mode.MODE_CURRENT_AC.value:
-            return "CONF:CURR:AC\n"
+            return "CONF:CURR:AC"
 
         elif self.value == XDM1041Mode.MODE_RES.value:
-            return "CONF:RES\n"
+            return "CONF:RES"
 
         elif self.value == XDM1041Mode.MODE_CONT.value:
-            return "CONF:CONT\n"
+            return "CONF:CONT"
 
         elif self.value == XDM1041Mode.MODE_DIODE.value:
-            return "CONF:DIOD\n"
+            return "CONF:DIOD"
 
         elif self.value == XDM1041Mode.MODE_CAPACITANCE.value:
-            return "CONF:CAP\n"
+            return "CONF:CAP"
 
         elif self.value == XDM1041Mode.MODE_FREQUENCY.value:
-            return "CONF:FREQ\n"
+            return "CONF:FREQ"
 
         elif self.value == XDM1041Mode.MODE_PERIOD.value:
-            return "CONF:PER\n"
+            return "CONF:PER"
 
         elif self.value == XDM1041Mode.MODE_TEMP.value:
-            return "CONF:TEMP\n"
+            return "CONF:TEMP"
 
 
 class XDM1041Cmd(Enum):
@@ -91,67 +91,67 @@ class XDM1041Cmd(Enum):
 
     def __str__(self):
         if self.value == XDM1041Cmd.IDN.value:
-            return "*IDN?\n"
+            return "*IDN?"
 
         elif self.value == XDM1041Cmd.RATE_S.value:
-            return "RATE S\n"
+            return "RATE S"
 
         elif self.value == XDM1041Cmd.RATE_M.value:
-            return "RATE M\n"
+            return "RATE M"
 
         elif self.value == XDM1041Cmd.RATE_F.value:
-            return "RATE F\n"
+            return "RATE F"
 
         elif self.value == XDM1041Cmd.MEASURE_1.value:
-            return "MEAS1:SHOW?\n"
+            return "MEAS1:SHOW?"
 
         elif self.value == XDM1041Cmd.MEASURE_2.value:
-            return "MEAS2:SHOW?\n"
+            return "MEAS2:SHOW?"
 
         elif self.value == XDM1041Cmd.MEASURE_1_RAW.value:
-            return "MEAS1?\n"
+            return "MEAS1?"
 
         elif self.value == XDM1041Cmd.MEASURE_2_RAW.value:
-            return "MEAS2?\n"
+            return "MEAS2?"
 
         elif self.value == XDM1041Cmd.SET_RANGE.value:
-            return "RANGE {}\n"
+            return "RANGE {}"
 
         elif self.value == XDM1041Cmd.SET_BEEP_ON.value:
-            return "SYST:BEEP:STAT ON\n"
+            return "SYST:BEEP:STAT ON"
 
         elif self.value == XDM1041Cmd.SET_BEEP_OFF.value:
-            return "SYST:BEEP:STAT OFF\n"
+            return "SYST:BEEP:STAT OFF"
 
         elif self.value == XDM1041Cmd.GET_BEEP_STATUS.value:
-            return "SYST:BEEP:STAT?\n"
+            return "SYST:BEEP:STAT?"
 
         elif self.value == XDM1041Cmd.GET_SYSTEM_DATE.value:
-            return "SYST:DATE?\n"
+            return "SYST:DATE?"
 
         elif self.value == XDM1041Cmd.GET_SYSTEM_TIME.value:
-            return "SYST:TIME?\n"
+            return "SYST:TIME?"
 
         elif self.value == XDM1041Cmd.SET_AUTO_MODE.value:
-            return "AUTO\n"
+            return "AUTO"
 
         elif self.value == XDM1041Cmd.GET_AUTO_MODE.value:
-            return "AUTO?\n"
+            return "AUTO?"
 
         elif self.value == XDM1041Cmd.SET_CALC_STAT_OFF.value:
-            return "CALC:STAT OFF\n"
+            return "CALC:STAT OFF"
 
         elif self.value == XDM1041Cmd.SET_CALC_FUNC_AVG.value:
-            return "CALC:FUNC AVER\n"
+            return "CALC:FUNC AVER"
 
         elif self.value == XDM1041Cmd.GET_CALC_AVG.value:
-            return "CALC:FUNC AVER\n"
+            return "CALC:AVER:AVER?"
 
-        elif self.value == XDM1041Cmd.SET_CALC_FUNC_AVG.value:
-            return "CALC:AVER:AVER?\n"
+        elif self.value == XDM1041Cmd.GET_CALC_MIN.value:
+            return "CALC:AVER:MIN?"
 
-        elif self.value == XDM1041Cmd.SET_CALC_FUNC_AVG.value:
-            return "CALC:FUNC AVER\n"
+        elif self.value == XDM1041Cmd.GET_CALC_MAX.value:
+            return "CALC:AVER:MAX?"
 
         elif self.value == XDM1041Cmd.FUNC1.value:
             return "FUNC1?"
@@ -161,5 +161,3 @@ class XDM1041Cmd(Enum):
 
         elif self.value == XDM1041Cmd.GET_RANGE.value:
             return "RANGE?"
-
-

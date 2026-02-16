@@ -21,7 +21,7 @@ class DSO1014A(Oscilloscope):
         '''
         Init the VISA (pyvisa) connection and get the basic product info
         '''
-        super().__init__("DSOX4104A", PyVISAHandler(address))
+        super().__init__("DSO1014A", PyVISAHandler(address))
         self.channel_count = 4
 
     def _cmd(self, cmd_name, **kwargs):
