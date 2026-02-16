@@ -43,14 +43,17 @@ class SPD3303X(PowerSupply):
         self._load_cal()
 
     def _load_cal(self):
-        # read in parameters from the config file
-        self.ch1_v_m = float(self.config["CH1"]["v_slope"])
-        self.ch1_v_b = float(self.config["CH1"]["v_offset"])
-        self.ch1_i_b = float(self.config["CH1"]["i_offset"])
+        # read in calibration parameters from config.ini sections
+        ch1 = self.registry.get_config_section(self.model, "CH1")
+        ch2 = self.registry.get_config_section(self.model, "CH2")
 
-        self.ch2_v_m = float(self.config["CH2"]["v_slope"])
-        self.ch2_v_b = float(self.config["CH2"]["v_offset"])
-        self.ch2_i_b = float(self.config["CH2"]["i_offset"])
+        self.ch1_v_m = float(ch1["v_slope"])
+        self.ch1_v_b = float(ch1["v_offset"])
+        self.ch1_i_b = float(ch1["i_offset"])
+
+        self.ch2_v_m = float(ch2["v_slope"])
+        self.ch2_v_b = float(ch2["v_offset"])
+        self.ch2_i_b = float(ch2["i_offset"])
 
     def __get_product_info(self):
         '''
