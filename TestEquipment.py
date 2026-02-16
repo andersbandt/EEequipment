@@ -154,8 +154,10 @@ class PyVISAHandler(ConnectionHandler):
             try:
                 self.inst = self.rm.open_resource(self.address)
             except ValueError:
-                self.rm = pyvisa.ResourceManager()
-                self.inst = self.rm.open_resource(self.address)
+                # Address may have been null-stripped for display; find
+                # the actual resource string that matches after stripping.
+                resolved = self._resolve_address(self.address)
+                self.inst = self.rm.open_resource(resolved)
 
             if 'timeout' in config:
                 self.inst.timeout = int(config['timeout'])
@@ -172,6 +174,14 @@ class PyVISAHandler(ConnectionHandler):
                 print("Error with opening PyVISA Handler")
                 self.status = False
                 print(e)
+
+    def _resolve_address(self, address):
+        """Match a null-stripped address against actual listed resources."""
+        clean = address.replace('\x00', '')
+        for res in self.rm.list_resources():
+            if res.replace('\x00', '') == clean:
+                return res
+        raise ValueError(f"No matching VISA resource found for: {address}")
 
     def disconnect(self):
         if self.inst:
