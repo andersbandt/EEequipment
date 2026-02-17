@@ -8,9 +8,6 @@ from EEequipment.TestEquipment import PyVISAHandler
 
 
 
-# TODO: have Claude go through the command `config.ini` and check against the actual 1000A series oscilloscopes programmer's guide
-
-
 class DSO1014A(Oscilloscope):
     """
     Driver for the Keysight DSO 1014A oscilloscope
