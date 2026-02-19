@@ -18,10 +18,7 @@ from enum import Enum
 # from util_fns import assume_units, ProxyList
 
 
-# TODO: can the unit test instantiate all the classes ? (it would catch stuff like abstract methods not defined)
-
-
-# TODO: wait is there no warning if a command isn't defined ???
+# TODO: can the unit test instantiate all the classes? (would catch abstract methods not implemented)
 
 
 class CommandRegistry:
@@ -144,15 +141,10 @@ class PyVISAHandler(ConnectionHandler):
         self.status = False
 
     def connect(self, config: dict):
-        # set up the ResourceManager
+        # set up the ResourceManager (NI-VISA backend by default; use '@py' for pyvisa-py)
+        # TODO: should I make the backend user-selectable in settings?
+        # TODO: what changed where @py stopped working on the work setup?
         self.rm = pyvisa.ResourceManager()
-        # TODO: should I make this user selectable in setting ???
-        # TODO: add a print out of this even if I don't connect to an instrument (on app startup)
-        # TODO (linked to another TODO in gui_class.py): what changed where @py doesn't work on work setup?
-        # try:
-        #     self.rm = pyvisa.ResourceManager('@py')  # use 'pyvisa-py' backend
-        # except ValueError:
-        #     self.rm = pyvisa.ResourceManager()
 
         # print out info
         print("PyVISA Version:", pyvisa.__version__)
@@ -323,8 +315,7 @@ class TestEquipment(ABC):
             return ""
         return res
 
-    # NOTE: this has to be defined for the benchmarking function to work
-    # TODO: decide if this is the best way to handle it
+    # Required by benchmark(); each subclass implements the appropriate read command.
     @abstractmethod
     def read_value(self):
         pass
@@ -512,8 +503,7 @@ class PowerSupply(TestEquipment):
         """
 
 
-# TODO: I should really think about how to handle the various ranges that I will get.
-#   Just maybe scale them upwards with no context included on what the actual voltage level is?
+# TODO: think about how to handle the various measurement ranges — auto-scale? expose range in read_value return?
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
     def __init__(self, model: str, connection_handler: ConnectionHandler):

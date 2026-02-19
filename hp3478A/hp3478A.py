@@ -10,15 +10,11 @@ from EEequipment.TestEquipment import DMM
 from EEequipment.TestEquipment import PyVISAHandler
 
 
-# TODO: error with this equipment where the first voltage read will be "1" always
-
-# TODO: get some other commands in here (useful for testing)
-
-
 class HP3478A(DMM):
     def __init__(self, address):
             super().__init__("fluke8842A", PyVISAHandler(address))
             self.set_range_auto()
+            self.read_value() # NOTE: this is here to prevent weird glitch where first voltage read is always "1"
 
     def set_mode(self, mode: str):
         pass
