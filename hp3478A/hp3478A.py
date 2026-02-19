@@ -1,16 +1,18 @@
 """
 @file     hp3478A.py
 @author   Anders Bandt
-@brief    class for talking to a Fluke fluke8842A
+@brief    class for talking to a HP 3478A multimeter
 """
 
-# import modules
-import logging
-import serial
 
 # import user created modules
 from EEequipment.TestEquipment import DMM
 from EEequipment.TestEquipment import PyVISAHandler
+
+
+# TODO: error with this equipment where the first voltage read will be "1" always
+
+# TODO: get some other commands in here (useful for testing)
 
 
 class HP3478A(DMM):

@@ -2,6 +2,40 @@
 
 A Python library for controlling electronic test equipment over Serial, PyVISA (USB/LAN), and USB HID. Commands are defined in config files rather than hardcoded, making it easy to add support for new instruments.
 
+
+## Instrument Communication
+
+### VISA
+#### pyvisa
+`pyvisa` is a critical library to this project for interfacing with most test equipment.
+
+When you instantiate a resource manager, you can call out a certain backend
+
+```python
+self.rm = pyvisa.ResourceManager('@py')
+```
+Using `@py` makes it so we use the PyVISA-py (pure Python) backend.
+It currently supports the following instruments
+
+- TCPIP INSTR
+- TCPIP SOCKET
+- GPIB INSTR
+- ASRL INSTR
+- USB INSTR
+- USB RAW
+
+
+If called without arguments, PyVISA will prefer the default backend (IVI) which tries to find the VISA shared library for you. If it fails it will fall back to pyvisa-py if installed. You can check what backend is used and the location of the shared library used, if relevant, simply by:
+
+```python
+>>> print(rm)
+<ResourceManager('/path/to/visa.so')>
+```
+
+#### NI-VISA
+I prefer to instead use the NI-VISA for 
+
+
 ## Architecture
 
 ```
@@ -141,3 +175,8 @@ print(rm.list_resources())
 ## Want to add your equipment?
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for a step-by-step guide.
+
+
+## References
+
+- [PyVISA-py: Pure Python backend for PyVISA](https://pyvisa.readthedocs.io/projects/pyvisa-py/en/latest/)

@@ -7,6 +7,9 @@ from EEequipment.TestEquipment import Oscilloscope
 from EEequipment.TestEquipment import PyVISAHandler
 
 
+
+
+
 class DSOX4104A(Oscilloscope):
     """
     Driver for the Keysight DSO-X 4104A InfiniiVision oscilloscope.
