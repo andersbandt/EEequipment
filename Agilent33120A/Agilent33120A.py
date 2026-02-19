@@ -22,11 +22,9 @@ class Agilent33120A(FunctionGenerator):
         '''
         super().__init__("Agilent33120A", PyVISAHandler(address))
         self._channel_count = 1
-        # initialize the config parser
-        # config_file_path = "./EEequipment/SPD3303X/config.ini"
-        # self.config = configparser.ConfigParser()
-        # self.config.read(config_file_path)
-        # self._load_cal()
+
+    def read_value(self):
+        return self.test_conn()
 
 
 

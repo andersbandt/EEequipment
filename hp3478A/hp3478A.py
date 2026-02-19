@@ -12,7 +12,7 @@ from EEequipment.TestEquipment import PyVISAHandler
 
 class HP3478A(DMM):
     def __init__(self, address):
-            super().__init__("fluke8842A", PyVISAHandler(address))
+            super().__init__("hp3478A", PyVISAHandler(address))
             self.set_range_auto()
             self.read_value() # NOTE: this is here to prevent weird glitch where first voltage read is always "1"
 

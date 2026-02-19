@@ -13,12 +13,9 @@ from pathlib import Path
 import time
 from enum import Enum
 
-# import user created modules
-# from units import ureg as u
-# from util_fns import assume_units, ProxyList
 
 
-# TODO: can the unit test instantiate all the classes? (would catch abstract methods not implemented)
+# TODO: I should probably do an audit that I'm using abstract methods effectively here (force user to define any niche functions)
 
 
 class CommandRegistry:
@@ -333,11 +330,14 @@ class TestEquipment(ABC):
     def query(self, cmd: str):
         return self.conn.query(cmd)
 
-    def benchmark(self, samples, method):
+    def benchmark(self, samples, method, store_values=False):
         start_time = time.perf_counter()
 
+        values = []
         for _ in range(samples):
-            _ = method()
+            result = method()
+            if store_values:
+                values.append(result)
 
         end_time = time.perf_counter()
 
@@ -353,6 +353,7 @@ class TestEquipment(ABC):
             "elapsed_sec": round(elapsed, 4),
             "sample_rate_hz": round(sample_rate, 2),
             "string": result_str,
+            "values": values,
         }
 
         return result
@@ -503,7 +504,7 @@ class PowerSupply(TestEquipment):
         """
 
 
-# TODO: think about how to handle the various measurement ranges — auto-scale? expose range in read_value return?
+
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
     def __init__(self, model: str, connection_handler: ConnectionHandler):
