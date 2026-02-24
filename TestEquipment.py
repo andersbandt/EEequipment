@@ -537,6 +537,7 @@ class DMM(TestEquipment):
         cmd = self.registry.get_command(self.model, "command", "get_mode")
         return self.query(cmd)
 
+    # NOTE: this one is abstract because it's so custom/specific per DMM model
     @abstractmethod
     def set_range(self, rng: int) -> bool:
         pass
@@ -676,9 +677,9 @@ class Oscilloscope(TestEquipment, metaclass=abc.ABCMeta):
     def get_waveform_data(self, channel, points=0, fmt="BYTE"):
         pass
 
-    # NOTE: added because there isn't a simple read_value function for an oscillscope
+    # NOTE: added because there isn't a simple read_value function for an oscilloscope
     def read_value(self):
-        return self.test_conn()
+        return self.measure_vavg(1) # tag:HARDCODE (channel)
 
 
 # Channel subclass approach for future v2.0 implementation

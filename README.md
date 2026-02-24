@@ -33,7 +33,12 @@ If called without arguments, PyVISA will prefer the default backend (IVI) which 
 ```
 
 #### NI-VISA
-I prefer to instead use the NI-VISA for 
+I prefer to instead use the NI-VISA for
+This will likely install a `visa32.dll` which in my Windows system gets retrieved from
+
+```commandline
+C:\WINDOWS\system32\visa32.dll
+```
 
 
 ## Architecture
