@@ -18,9 +18,21 @@ class HP3478A(DMM):
             self.read_value() # NOTE: this is here to prevent weird glitch where first voltage read is always "1"
 
 
-    def set_range(self):
-        pass
-        # TODO: need to use this as an example for a custom range setting method
+    def set_range(self, rng: int) -> bool:
+        """Set range by index (1-based, matching range_N keys in config.ini).
+
+        The hp3478A has no mode-dependent range restriction — any configured
+        range_N can be sent regardless of the current function. The instrument
+        validates the combination itself.
+
+        Returns True on success, False if the range index is not in config.
+        """
+        try:
+            cmd = self.registry.get_command(self.model, "command", f"range_{rng}")
+        except ValueError:
+            return False
+        self.write(cmd)
+        return True
 
     def get_mode(self):
         status_raw = super().get_mode()
@@ -75,8 +87,19 @@ class HP3478A(DMM):
         return rang
 
     def get_sample_speed(self):
-        pass
-        # TODO: finish this for bits 1,0 of status register
-        #   1=5.5 digit
-        #   2=4.5 digit
-        #   3=3.5 digit
+        try:
+            status_raw = super().get_mode()  # sends "B", returns status byte string
+        except UnicodeDecodeError:
+            return "UnicodeDecodeError"
+
+        first_byte = ord(status_raw[0])
+        bits_10 = first_byte & 0b00000011
+
+        if bits_10 == 1:
+            return "5.5 digit (slow)"
+        elif bits_10 == 2:
+            return "4.5 digit (medium)"
+        elif bits_10 == 3:
+            return "3.5 digit (fast)"
+        else:
+            return "Unknown"

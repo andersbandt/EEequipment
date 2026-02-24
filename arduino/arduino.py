@@ -8,7 +8,7 @@
 
 # import user created modules
 from EEequipment.TestEquipment import Equipment
-from common.serial_helper import SerialGeneral
+from common.serial_api import SerialGeneral
 
 
 class Arduino(Equipment):

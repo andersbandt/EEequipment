@@ -18,6 +18,21 @@ from enum import Enum
 # TODO: I should probably do an audit that I'm using abstract methods effectively here (force user to define any niche functions)
 
 
+# Module-level PyVISA backend setting.
+# None / "" → NI-VISA default; "@py" → pyvisa-py (no NI-VISA installation required).
+# Set at startup via set_visa_backend() so equipment drivers never need to import app config.
+_visa_backend = None
+
+
+def set_visa_backend(backend: str):
+    global _visa_backend
+    _visa_backend = backend if backend else None
+
+
+def get_visa_backend():
+    return _visa_backend
+
+
 class CommandRegistry:
     """Loads and manages equipment commands from INI files"""
 
@@ -138,10 +153,8 @@ class PyVISAHandler(ConnectionHandler):
         self.status = False
 
     def connect(self, config: dict):
-        # set up the ResourceManager (NI-VISA backend by default; use '@py' for pyvisa-py)
-        # TODO: should I make the backend user-selectable in settings?
-        # TODO: what changed where @py stopped working on the work setup?
-        self.rm = pyvisa.ResourceManager()
+        backend = get_visa_backend()
+        self.rm = pyvisa.ResourceManager(backend) if backend else pyvisa.ResourceManager()
 
         # print out info
         print("PyVISA Version:", pyvisa.__version__)
