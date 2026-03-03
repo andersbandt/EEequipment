@@ -1,4 +1,5 @@
 
+import logging
 
 # import needed modules
 from pyvisa import ResourceManager
@@ -9,6 +10,8 @@ import configparser
 # import Equipment parent class
 from EEequipment.TestEquipment import PowerSupply
 from EEequipment.TestEquipment import PyVISAHandler
+
+logger = logging.getLogger(__name__)
 
 
 class SPD3303X(PowerSupply):
@@ -375,18 +378,18 @@ class SPD3303X(PowerSupply):
     def cal_voltage(self, channel, point, actual_v):
         #cmd = f"CAL:VOLT ch{channel},{point},{actual_v}"
         cmd = f"CALibration:VOLTage CH{channel},{point},{actual_v}"
-        print(cmd)
+        logger.debug(cmd)
         self.conn.write(cmd)
 
     def cal_current(self, channel, point, actual_i):
         cmd = f"CAL:CURR CH{channel},{point},{actual_i}"
-        print(cmd)
+        logger.debug(cmd)
         self.conn.write(cmd)
 
     def cal_recall(self):
         cmd = "*CALRCL"
-        print(f"SPD3303X: querying {cmd}")
-        print(self.conn.query("CALRCL"))
+        logger.debug(f"SPD3303X: querying {cmd}")
+        logger.debug(self.conn.query("CALRCL"))
 
     def cal_clear(self, channel, cal_type):
         NR1 = -1  # for "setting" calibration coefficients
@@ -408,7 +411,7 @@ class SPD3303X(PowerSupply):
 
         self.conn.write(f"*CALCLS {NR1}")
         self.conn.write(f"*CALCLS {NR2}")
-        print(f"Cleared calibration with NR values of {NR1},{NR2}")
+        logger.info(f"Cleared calibration with NR values of {NR1},{NR2}")
 
     def cal_clear_all(self):
         self.conn.write("*CALCLS 8")

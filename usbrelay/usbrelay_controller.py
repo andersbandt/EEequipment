@@ -3,10 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 import array
+import logging
 import os
 import usb.core
 import usb.util
 import configparser
+
+logger = logging.getLogger(__name__)
 
 USB_TYPE_CLASS = 0x20
 USB_ENDPOINT_OUT = 0x00
@@ -101,7 +104,7 @@ class USBRelayController(object):
         if os.path.exists(config_file_path):
             self.read_relay_config(config_file_path)
         else:
-            print(f"Configuration file {config_file_path} does not exist.")
+            logger.error(f"Configuration file {config_file_path} does not exist.")
             raise BaseException
 
         # set startup on/off states based on config file
@@ -125,9 +128,9 @@ class USBRelayController(object):
     def print_relay_mappings(self):
         for channel, connection in self.relay_mapping.items():
             if connection:
-                print(f"{channel}: {connection}")
+                logger.info(f"{channel}: {connection}")
             else:
-                print(f"{channel}: Not configured")
+                logger.info(f"{channel}: Not configured")
 
     def get_relay_mapping(self, relay):
         return self.relay_mapping[f'channel_{relay}']
@@ -138,7 +141,7 @@ class USBRelayController(object):
     def return_channel(self, mapping):
         # returns the channel number for a certain "mapping" string
         channel = next((channel for channel, device in self.relay_mapping.items() if device == mapping), None)
-        print(f'The channel for {mapping} is: {channel}')
+        logger.debug(f'The channel for {mapping} is: {channel}')
         return int(channel[-1])
 
     def get_property(self, relay, name, default=None):

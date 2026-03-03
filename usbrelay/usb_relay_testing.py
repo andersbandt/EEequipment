@@ -29,11 +29,14 @@
 ########## METHOD 2:     mine!!!!         #############
 #######################################################
 
+import logging
 import usb.core
 import usb.util
 
 
 from EEequipment.usbrelay import usbrelay_controller
+
+logger = logging.getLogger(__name__)
 
 
 VENDOR_ID = 0x16C0
@@ -83,14 +86,14 @@ devices = usb.core.find(
 usb_relay = usbrelay_controller.USBRelayController(devices)
 
 
-print(usb_relay.state)
+logger.info(usb_relay.state)
 
 for i in range(1, 9):
     usb_relay.toggle_state(i)
     # usb_relay.set_state(i, 1)
 
 
-print(usb_relay.state)
+logger.info(usb_relay.state)
 
 
 

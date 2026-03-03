@@ -11,6 +11,8 @@ import time
 
 # import user created modules
 from EEequipment.TestEquipment import DMM
+
+logger = logging.getLogger(__name__)
 from EEequipment.XDM1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
 from EEequipment.XDM1041 import xdm1041helper
 from EEequipment.TestEquipment import SerialHandler
@@ -39,10 +41,8 @@ class XDM1041(DMM):
     def show_available_ranges(cls):
         for xdm_mode in cls.range_ref_dict.keys():
             range_dict = cls.range_ref_dict[xdm_mode]
-            print("Supported ranges for {}: ".format(xdm_mode.name), end='')
-            for key, value in range_dict.items():
-                print("{}:{} ".format(key, value), end='')
-            print('')
+            ranges_str = " ".join(f"{k}:{v}" for k, v in range_dict.items())
+            logger.debug(f"Supported ranges for {xdm_mode.name}: {ranges_str}")
 
     def __init__(self, serial_device):
         super().__init__("XDM1041", SerialHandler(serial_device))
@@ -82,7 +82,7 @@ class XDM1041(DMM):
 
         # we made it, set the range
         cmd = str(XDM1041Cmd.SET_RANGE).format(rng)
-        print(f"\tsetting DMM range with cmd: {cmd}")
+        logger.debug(f"setting DMM range with cmd: {cmd}")
         self.send_cmd(cmd)
         return True
 
@@ -198,7 +198,7 @@ class XDM1041(DMM):
         self.set_mode(XDM1041Mode.MODE_VOLTAGE_DC)
         time.sleep(4) # sleep 2 seconds or else will read 00.000 mV
         raw_str = self.read_val1_str()
-        print(f"DMM: raw_str: {raw_str}")
+        logger.debug(f"DMM: raw_str: {raw_str}")
         voltage = xdm1041helper.parse_voltage_str(raw_str)
         return voltage
 

@@ -6,6 +6,7 @@
 """
 
 # import needed modules
+import logging
 import os
 import platform
 import configparser
@@ -13,12 +14,13 @@ import configparser
 # import user defined modules
 from common import subprocessor as subp
 
+logger = logging.getLogger(__name__)
 
 # get operating system information
 os_name = platform.system()
-print(f"Initializing XDS config paths with OS: {os_name}")
+logger.info(f"Initializing XDS config paths with OS: {os_name}")
 if os_name != "Windows" and os_name != "Linux":
-    print("Undefined operating system to set for XDS110-API paths!!!")
+    logger.error("Undefined operating system to set for XDS110-API paths!!!")
     raise BaseException
 
 
@@ -104,7 +106,7 @@ def flash_firmware(config_type, serial_number):
     elif config_type == "supply_power":
         config_file = f"/targetConfigs/CC2642R1F2_{serial_number}.ccxml"
     else:
-        print(f"Trying config {config_type}")
+        logger.warning(f"Trying config {config_type}: bad target config type")
         raise XDS110Exception("Bad target config type!")
 
     packet = subp.execute_command(

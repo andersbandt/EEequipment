@@ -1,9 +1,12 @@
+import logging
 from xdm1041defs import XDM1041Mode, XDM1041Cmd
 from xdm1041main import XDM1041
 import time
 import configparser
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)-8s %(message)s")
+    logger = logging.getLogger(__name__)
 
     # show the available ranges for the different modes
     XDM1041.show_available_ranges()
@@ -14,7 +17,7 @@ if __name__ == "__main__":
 
     ser_device = config.get("SERIAL", "serial_port")
 
-    print("Setting port to:{}".format(ser_device))
+    logger.info("Setting port to:{}".format(ser_device))
 
     # initialize the XDM class
     # measure voltage @50V range
@@ -31,14 +34,13 @@ if __name__ == "__main__":
             val_raw: float = xdm.read_val1_raw()
             val_str: str = xdm.read_val1_str().replace('\n', '').replace('\r', '')
 
-            print("Timestamp:{} Formatted value:{} Raw value:{}".format(
+            logger.info("Timestamp:{} Formatted value:{} Raw value:{}".format(
                 int(time.time() * 1000),
                 val_str,
                 val_raw)
             )
 
     except (KeyboardInterrupt, SystemExit):
-        print("Exiting")
-
+        logger.info("Exiting")
 
 

@@ -1,4 +1,5 @@
 
+import logging
 
 # import needed connection modules
 import pyvisa
@@ -12,6 +13,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import time
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -63,26 +66,26 @@ class CommandRegistry:
                 section: dict(config[section])
                 for section in config.sections()
             }
-            print(f"Loaded commands for '{model_name}' from {config_file}")
+            logger.debug(f"Loaded commands for '{model_name}' from {config_file}")
 
     def get_command(self, model: str, section: str, cmd_name: str) -> str:
         config_path = self.equipment_dir / model / "config.ini"
         if model not in self.commands:
             msg = f"Model '{model}' not found in registry. Expected config at: {config_path}"
-            print(f"[CommandRegistry] ERROR: {msg}")
+            logger.error(msg)
             raise ValueError(msg)
         if section not in self.commands[model]:
             available = list(self.commands[model].keys())
             msg = (f"Section '[{section}]' not found in {config_path}. "
                    f"Available sections: {available}")
-            print(f"[CommandRegistry] ERROR: {msg}")
+            logger.error(msg)
             raise ValueError(msg)
         if cmd_name not in self.commands[model][section]:
             available = list(self.commands[model][section].keys())
             msg = (f"Command '{cmd_name}' not found in [{section}] of {config_path}. "
                    f"Add '{cmd_name} = <SCPI command>' to the [{section}] section. "
                    f"Available commands: {available}")
-            print(f"[CommandRegistry] ERROR: {msg}")
+            logger.error(msg)
             raise ValueError(msg)
 
         return self.commands[model][section][cmd_name]
@@ -95,7 +98,7 @@ class CommandRegistry:
             config_path = self.equipment_dir / model / "config.ini"
             msg = (f"Missing placeholder {e} when formatting '{cmd_name}' in {config_path}. "
                    f"Template: '{cmd_template}', provided keys: {list(kwargs.keys())}")
-            print(f"[CommandRegistry] ERROR: {msg}")
+            logger.error(msg)
             raise ValueError(msg)
 
     def get_config_section(self, model: str, section: str) -> dict:
@@ -157,12 +160,12 @@ class PyVISAHandler(ConnectionHandler):
         self.rm = pyvisa.ResourceManager(backend) if backend else pyvisa.ResourceManager()
 
         # print out info
-        print("PyVISA Version:", pyvisa.__version__)
-        print("Backend:", self.rm.visalib)
+        logger.info(f"PyVISA Version: {pyvisa.__version__}")
+        logger.info(f"Backend: {self.rm.visalib}")
 
         # attempt to open instance
         try:
-            print("Starting PyVISA ConnectionHandler")
+            logger.info("Starting PyVISA ConnectionHandler")
             try:
                 self.inst = self.rm.open_resource(self.address)
             except ValueError:
@@ -173,19 +176,18 @@ class PyVISAHandler(ConnectionHandler):
 
             if 'timeout' in config:
                 self.inst.timeout = int(config['timeout'])
-                print(f"\ttimeout: {self.inst.timeout}")
+                logger.debug(f"timeout: {self.inst.timeout}")
             if 'read_termination' in config:
                 self.inst.read_termination = config['read_termination'].encode().decode('unicode_escape')
-                print("\tread term:", repr(self.inst.read_termination))
+                logger.debug(f"read term: {repr(self.inst.read_termination)}")
             if 'write_termination' in config:
                 self.inst.write_termination = config['write_termination'].encode().decode('unicode_escape')
-                print("\twrite term:", repr(self.inst.write_termination))
+                logger.debug(f"write term: {repr(self.inst.write_termination)}")
 
             self.status = True
         except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
-                print("Error with opening PyVISA Handler")
+                logger.error(f"Error with opening PyVISA Handler: {e}")
                 self.status = False
-                print(e)
 
     def _resolve_address(self, address):
         """Match a null-stripped address against actual listed resources."""
@@ -271,8 +273,7 @@ class SerialHandler(ConnectionHandler):
             try:
                 val = val.decode('utf-8').strip()
             except UnicodeDecodeError:
-                print("Failed to decode below line")
-                print(val)
+                logger.error(f"Failed to decode line: {val}")
 
         return val
 
@@ -301,9 +302,9 @@ class TestEquipment(ABC):
         self.config = self.registry.get_config_section(model, conn_type)
 
         # connect
-        print("Initiating TestEquipment connection in __init__()")
+        logger.info("Initiating TestEquipment connection in __init__()")
         self.conn.connect(self.config)
-        print("done with connection in __init()")
+        logger.info("done with connection in __init__()")
 
     @property
     def status(self) -> bool:
