@@ -242,18 +242,21 @@ class DSOX4104A(Oscilloscope):
     def single(self):
         self.conn.write(self._cmd("acq_single"))
 
-    def set_acquire_type(self, acq_type):
+# TODO: audit the abstract class naming here
+    def set_acq_type(self, acq_type):
         """Set acquisition type: 'NORMal', 'AVERage', 'HRESolution', 'PEAK'."""
         self._send_cmd(self._cmd("acq_type", acq_type=acq_type))
+
+# TODO: rename acquire to acq in below functions
 
     def get_acquire_type(self):
         return self.conn.query(self._cmd("acq_get_type")).strip()
 
-    def set_acquire_count(self, count):
+    def set_acq_count(self, count):
         """Set averaging count (used when acquire type is AVERage)."""
         self._send_cmd(self._cmd("acq_count", count=count))
 
-    def get_acquire_count(self):
+    def get_acq_count(self):
         return int(self.conn.query(self._cmd("acq_get_count")))
 
     def get_sample_rate(self):
