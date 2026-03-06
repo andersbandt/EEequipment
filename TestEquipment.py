@@ -344,6 +344,11 @@ class TestEquipment(ABC):
     def query(self, cmd: str):
         return self.conn.query(cmd)
 
+    def has_capability(self, capability):
+        """Check if a capability is declared in the equipment's config.ini [capabilities] section."""
+        caps = self.registry.get_config_section(self.model, "capabilities")
+        return caps.get(capability, "false").lower() == "true"
+
     def benchmark(self, samples, method, store_values=False):
         start_time = time.perf_counter()
 
@@ -550,6 +555,26 @@ class DMM(TestEquipment):
     def get_mode(self):
         cmd = self.registry.get_command(self.model, "command", "get_mode")
         return self.query(cmd)
+
+    def get_secondary_mode(self):
+        """Query the secondary function/mode (FUNC2). Requires 'get_func2' in config."""
+        cmd = self.registry.get_command(self.model, "command", "get_func2")
+        return self.query(cmd)
+
+    def set_secondary_mode(self, mode: str):
+        """Set the secondary function (e.g. 'FREQ' or 'NONe'). Requires 'set_func2' in config."""
+        cmd = self.registry.format_command(self.model, "command", "set_func2", mode=mode)
+        self.write(cmd)
+
+    def read_secondary_value(self):
+        """Read the secondary measurement (MEAS2). Requires 'read_secondary' in config.
+        Returns None when the instrument reports a non-numeric value (e.g. 'NONe')."""
+        cmd = self.registry.get_command(self.model, "command", "read_secondary")
+        raw = self.query(cmd)
+        try:
+            return float(raw)
+        except (ValueError, TypeError):
+            return None
 
     # NOTE: this one is abstract because it's so custom/specific per DMM model
     @abstractmethod
