@@ -162,9 +162,9 @@ class SPD3303X(PowerSupply):
 
         raw_current = self.get_raw_current(channel)
         if channel == 1:
-            return raw_current - self.ch1_i_b
+            return max(0.0, raw_current - self.ch1_i_b)
         elif channel == 2:
-            return raw_current - self.ch2_i_b
+            return max(0.0, raw_current - self.ch2_i_b)
 
     def get_power(self, channel):
         '''
@@ -259,7 +259,7 @@ class SPD3303X(PowerSupply):
             decoded["error"] = None
             return decoded
         except Exception as e:
-            # Return dict with error field when status query fails
+            logger.error(f"check_status failed: {e}")
             return {
                 "status": None,
                 "error": f"Failed to query status: {str(e)}",
@@ -282,8 +282,10 @@ class SPD3303X(PowerSupply):
         return self.conn.read()
 
     def _decode_hex(self, hex_value):
-        # Convert hex value to an integer
-        value = int(hex_value, 16)
+        # Convert status register value to an integer.
+        # Accepts decimal NR1 ("20") or 0x-prefixed hex ("0x14").
+        value = int(hex_value.strip(), 0)
+        logger.debug(f"SYST:STAT raw response: {repr(hex_value)}, parsed: {value}")
 
         # Dictionary to store decoded states
         decoded_info = {"ch1_mode": "CV" if not (value & 0x01) else "CC",
