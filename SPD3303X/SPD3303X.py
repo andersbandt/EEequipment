@@ -245,6 +245,19 @@ class SPD3303X(PowerSupply):
     ##################################
     #### etc functions  ##############
     ##################################
+    def check_error(self):
+        """Check for an error on the system."""
+        cmd = self.registry.get_command(self.model, "command", "check_error")
+        self.conn.write(cmd)
+        response = self.conn.read()
+        resp_list = response.split('  ')
+
+        if resp_list[0] == '0':
+            return False
+
+        resp_list[1] = resp_list[1].rstrip('\n')
+        raise self.PowerSupplyException(resp_list[0], resp_list[1])
+
     def check_status(self):
         """
         Return the status information for the power supply.

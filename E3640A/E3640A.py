@@ -13,6 +13,9 @@ class E3640A(PowerSupply):
         super().__init__("E3640A", PyVISAHandler(address))
         self.channel_count = 1
 
+    def check_error(self):
+        """E3640A does not have a SCPI error queue — not implemented."""
+        return False
 
     def check_status(self):
         """

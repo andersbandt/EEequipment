@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # initialize the XDM class
     # measure voltage @50V range
     xdm = XDM1041(XDM1041Mode.MODE_VOLTAGE_DC, 1, ser_device)
-    xdm.set_sample_speed_slow()
+    xdm.set_rate("slow")
 
     xdm.test_conn()
 

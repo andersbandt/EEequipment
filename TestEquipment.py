@@ -397,18 +397,13 @@ class PowerSupply(TestEquipment):
         super().__init__(model, connection_handler)
 
     def check_channel(self, channel) -> bool:
+        """Validate channel number is within range."""
         if not isinstance(channel, int):
             return False
-            raise self.PowerSupplyException(self.channel_count, "Channel count must be an integer")
-
         if self.channel_count == 0:
             return False
-
-        """Validate channel number is within range"""
         if channel not in range(1, self.channel_count + 1):
             return False
-            raise self.PowerSupplyException('21', f'Channel # must be an integer 1 - {self.channel_count}')
-
         return True
 
     def read_value(self) -> float:
@@ -493,18 +488,10 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
 
+    @abstractmethod
     def check_error(self):
-        """Check for an error on the system"""
-        cmd = self.registry.get_command(self.model, "command", "check_error")
-        self.conn.write(cmd)
-        response = self.conn.read()
-        resp_list = response.split('  ')
-
-        if resp_list[0] == '0':
-            return False
-
-        resp_list[1] = resp_list[1].rstrip('\n')
-        raise self.PowerSupplyException(resp_list[0], resp_list[1])
+        """Check for instrument errors. Implementation is model-specific."""
+        pass
 
     @abstractmethod
     def check_status(self):
@@ -589,19 +576,27 @@ class DMM(TestEquipment):
         cmd = self.registry.get_command(self.model, "command", "get_range")
         return self.query(cmd)
 
-    def set_sample_speed(self, speed):
+    def set_rate(self, speed):
         if speed == "slow":
-            cmd = self.registry.get_command(self.model, "command", "sample_slow")
+            cmd = self.registry.get_command(self.model, "command", "rate_slow")
         elif speed == "medium":
-            cmd = self.registry.get_command(self.model, "command", "sample_medium")
+            cmd = self.registry.get_command(self.model, "command", "rate_medium")
         elif speed == "fast":
-            cmd = self.registry.get_command(self.model, "command", "sample_fast")
+            cmd = self.registry.get_command(self.model, "command", "rate_fast")
         else:
-            raise BaseException("Unknown speed")
+            raise ValueError(f"Unknown rate: {speed}")
         self.write(cmd)
 
+    def get_rate(self):
+        """Query the current measurement rate. Returns None if not supported by this model."""
+        try:
+            cmd = self.registry.get_command(self.model, "command", "get_rate")
+            return self.query(cmd)
+        except ValueError:
+            return None
 
-class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
+
+class FunctionGenerator(TestEquipment):
     """
     Abstract base class for function generator instruments.
 
@@ -636,8 +631,9 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         arbitrary = "ARB"
 
 
+    @abstractmethod
     def set_function(self, function):
-        raise NotImplementedError
+        pass
 
     def set_frequency(self, value, channel=1):
         """Set the voltage value for the selected channel with calibration"""
@@ -664,7 +660,7 @@ class FunctionGenerator(TestEquipment, metaclass=abc.ABCMeta):
         self.write(cmd)
 
 
-class Oscilloscope(TestEquipment, metaclass=abc.ABCMeta):
+class Oscilloscope(TestEquipment):
     """Abstract base class for oscilloscope instruments."""
 
     def __init__(self, model: str, connection_handler: ConnectionHandler):
@@ -716,9 +712,9 @@ class Oscilloscope(TestEquipment, metaclass=abc.ABCMeta):
     def get_waveform_data(self, channel, points=0, fmt="BYTE"):
         pass
 
-    # NOTE: added because there isn't a simple read_value function for an oscilloscope
+    @abstractmethod
     def read_value(self):
-        return self.measure_vavg(1) # tag:HARDCODE (channel)
+        pass
 
 
 # Channel subclass approach for future v2.0 implementation

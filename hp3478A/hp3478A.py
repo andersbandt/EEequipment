@@ -86,7 +86,7 @@ class HP3478A(DMM):
 
         return rang
 
-    def get_sample_speed(self):
+    def get_rate(self):
         try:
             status_raw = super().get_mode()  # sends "B", returns status byte string
         except UnicodeDecodeError:
