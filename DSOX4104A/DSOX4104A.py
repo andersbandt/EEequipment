@@ -7,7 +7,7 @@ from EEequipment.TestEquipment import Oscilloscope
 from EEequipment.TestEquipment import PyVISAHandler
 
 
-
+# TODO: go through function set and see if there are any simple ones I can just purely define in my TestEquipment.Oscilloscope class
 
 
 class DSOX4104A(Oscilloscope):
@@ -242,14 +242,11 @@ class DSOX4104A(Oscilloscope):
     def single(self):
         self.conn.write(self._cmd("acq_single"))
 
-# TODO: audit the abstract class naming here
     def set_acq_type(self, acq_type):
         """Set acquisition type: 'NORMal', 'AVERage', 'HRESolution', 'PEAK'."""
         self._send_cmd(self._cmd("acq_type", acq_type=acq_type))
 
-# TODO: rename acquire to acq in below functions
-
-    def get_acquire_type(self):
+    def get_acq_type(self):
         return self.conn.query(self._cmd("acq_get_type")).strip()
 
     def set_acq_count(self, count):
@@ -263,11 +260,11 @@ class DSOX4104A(Oscilloscope):
         """Get the current sample rate in Sa/s."""
         return float(self.conn.query(self._cmd("acq_srate")))
 
-    def set_acquire_points(self, points):
+    def set_acq_points(self, points):
         """Set number of acquisition points."""
         self._send_cmd(self._cmd("acq_points", points=points))
 
-    def get_acquire_points(self):
+    def get_acq_points(self):
         return int(self.conn.query(self._cmd("acq_get_points")))
 
     # =========================================================================

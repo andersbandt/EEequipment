@@ -6,7 +6,6 @@
 
 # import modules
 import logging
-import serial
 import time
 
 # import user created modules
@@ -16,6 +15,11 @@ logger = logging.getLogger(__name__)
 from EEequipment.XDM1041.xdm1041defs import XDM1041Mode, XDM1041Cmd
 from EEequipment.XDM1041 import xdm1041helper
 from EEequipment.TestEquipment import SerialHandler
+
+
+# TODO: need to fill in the range things to the config.ini -- good Claude ask
+
+# TODO: would like to make this match TestEquipment more ...
 
 
 class XDM1041(DMM):

@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 
-# TODO: I should probably do an audit that I'm using abstract methods effectively here (force user to define any niche functions)
-
-
 # Module-level PyVISA backend setting.
 # None / "" → NI-VISA default; "@py" → pyvisa-py (no NI-VISA installation required).
 # Set at startup via set_visa_backend() so equipment drivers never need to import app config.
@@ -36,6 +33,7 @@ def get_visa_backend():
     return _visa_backend
 
 
+# TODO: ask Claude to review if this is the best / cleanest way to laod in commands from my .ini files
 class CommandRegistry:
     """Loads and manages equipment commands from INI files"""
 
@@ -510,7 +508,6 @@ class PowerSupply(TestEquipment):
         """
 
 
-
 class DMM(TestEquipment):
     """Abstract digital multimeter - defines DMM-specific interface"""
     def __init__(self, model: str, connection_handler: ConnectionHandler):
@@ -718,6 +715,7 @@ class Oscilloscope(TestEquipment):
 
 
 # Channel subclass approach for future v2.0 implementation
+# TODO: add some details in `todo.md` about what this entails, if it's worth it, etc.
 class Channel:
     def __init__(self, parent, index):
         self.parent = parent
