@@ -17,7 +17,6 @@ from EEequipment.XDM1041 import xdm1041helper
 from EEequipment.TestEquipment import SerialHandler
 
 
-# TODO: need to fill in the range things to the config.ini -- good Claude ask
 
 # TODO: would like to make this match TestEquipment more ...
 
