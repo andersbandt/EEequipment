@@ -182,6 +182,15 @@ class PyVISAHandler(ConnectionHandler):
                 self.inst.write_termination = config['write_termination'].encode().decode('unicode_escape')
                 logger.debug(f"write term: {repr(self.inst.write_termination)}")
 
+            # Flush any stale data left in the USBTMC endpoint buffer from a
+            # previous session. Without this, instruments like the SPD3303X
+            # raise EOVERFLOW on the very first query after open_resource().
+            try:
+                self.inst.clear()
+                logger.debug("VISA interface cleared")
+            except Exception as e:
+                logger.debug(f"VISA clear skipped (backend may not support it): {e}")
+
             self.status = True
         except (usb.core.USBError, pyvisa.errors.VisaIOError) as e:
                 logger.error(f"Error with opening PyVISA Handler: {e}")
