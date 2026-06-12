@@ -306,6 +306,12 @@ class TestEquipment(ABC):
 
         # get connection config
         conn_type = self.conn.__class__.__name__.replace('Handler', '').lower()
+        available = list(self.registry.commands.get(model, {}).keys())
+        if conn_type not in available:
+            raise ValueError(
+                f"{model}: handler is {self.conn.__class__.__name__} (needs [{conn_type}] section) "
+                f"but config.ini only has sections: {available}"
+            )
         self.config = self.registry.get_config_section(model, conn_type)
 
         # connect
