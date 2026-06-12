@@ -445,7 +445,11 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
         response = self.conn.read()
-        return float(response)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected get_set_voltage response: {repr(response)}")
+            return None
 
     def get_set_current(self, channel=1):
         """Get the set current value of the channel"""
@@ -455,7 +459,11 @@ class PowerSupply(TestEquipment):
         cmd = cmd.format(channel=channel)
         self.conn.write(cmd)
         response = self.conn.read()
-        return float(response)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected get_set_current response: {repr(response)}")
+            return None
 
     def get_voltage(self, channel=1):
         """Get the measured voltage value for a given channel"""
@@ -465,7 +473,11 @@ class PowerSupply(TestEquipment):
         cmd = self.registry.get_command(self.model, "command", "get_voltage")
         cmd = cmd.format(channel=channel)
         response = self.conn.query(cmd)
-        return float(response)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected get_voltage response: {repr(response)}")
+            return None
 
     def get_current(self, channel=1):
         """Get the current value for a given channel with calibration"""
@@ -474,7 +486,12 @@ class PowerSupply(TestEquipment):
 
         cmd = self.registry.get_command(self.model, "command", "get_current")
         cmd = cmd.format(channel=channel)
-        return float(self.conn.query(cmd))
+        response = self.conn.query(cmd)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected get_current response: {repr(response)}")
+            return None
 
     def get_power(self, channel=1):
         """Get the power value for a given channel"""
@@ -483,7 +500,11 @@ class PowerSupply(TestEquipment):
         cmd = self.registry.get_command(self.model, "command", "get_power")
         cmd = cmd.format(channel=channel)
         response = self.conn.query(cmd)
-        return float(response)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected get_power response: {repr(response)}")
+            return None
 
     def output_on(self, channel=1):
         """Turn on the channel output"""
@@ -531,7 +552,12 @@ class DMM(TestEquipment):
 
     def read_value(self) -> float:
         cmd = self.registry.get_command(self.model, "command", "read")
-        return float(self.conn.query(cmd))
+        response = self.conn.query(cmd)
+        try:
+            return float(response)
+        except (ValueError, TypeError):
+            logger.warning(f"{self.model}: unexpected read_value response: {repr(response)}")
+            return None
 
     def set_mode(self, mode: str):
         if mode == "VDC":
