@@ -14,6 +14,10 @@ class E3633A(PowerSupply):
         super().__init__("E3633A", SerialHandler(address))
         self.channel_count = 1
 
+    def check_error(self):
+        """E3633A does not have a SCPI error queue — not implemented."""
+        return False
+
     def check_status(self):
         """
         Return status for the single output.

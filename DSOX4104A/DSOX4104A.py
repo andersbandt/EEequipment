@@ -13,3 +13,6 @@ class DSOX4104A(Oscilloscope):
     def __init__(self, address):
         super().__init__("DSOX4104A", PyVISAHandler(address))
         self.channel_count = 4
+
+    def read_value(self):
+        return self.test_conn()
