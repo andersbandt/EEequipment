@@ -134,6 +134,30 @@ class SPD3303X(PowerSupply):
         self._send_cmd(f"CH{channel}:VOLTage {cal_value}")
         return True
 
+    def set_current(self, value, channel=1):
+        '''
+        Set the current limit for the selected channel.
+
+        Applies the per-channel current calibration offset so the effective
+        (regulated) limit matches the requested value. This is the inverse of
+        get_current(), which subtracts the same offset when reading back.
+        '''
+        if type(value) != float:
+            return False
+
+        self.check_channel(channel)
+
+        def get_ch_i_cal(ch):
+            if ch == 1:
+                return self.ch1_i_b
+            elif ch == 2:
+                return self.ch2_i_b
+
+        offset = get_ch_i_cal(channel)
+        cal_value = round(value + offset, 3)
+        self._send_cmd(f"CH{channel}:CURRent {cal_value}")
+        return True
+
     def get_active_channel(self):
         '''
         Query for the active channel
