@@ -37,8 +37,10 @@ def get_visa_backend():
 class CommandRegistry:
     """Loads and manages equipment commands from INI files"""
 
-    def __init__(self, equipment_dir: str = "EEequipment"):
-        self.equipment_dir = Path(equipment_dir)
+    def __init__(self, equipment_dir: str = None):
+        # Default to this package's own directory so command configs are found
+        # regardless of the process working directory.
+        self.equipment_dir = Path(equipment_dir) if equipment_dir else Path(__file__).parent
         self.commands = {}
         self._load_all_commands()
 
@@ -108,7 +110,7 @@ class CommandRegistry:
 
 _registry = None
 
-def get_registry(equipment_dir: str = "EEequipment") -> CommandRegistry:
+def get_registry(equipment_dir: str = None) -> CommandRegistry:
     global _registry
     if _registry is None:
         _registry = CommandRegistry(equipment_dir)

@@ -100,7 +100,7 @@ class USBRelayController(object):
         self.relay_mapping = {}
 
         # set relay mapping / configuration
-        config_file_path = "EEequipment/usbrelay/config.ini"
+        config_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini")
         if os.path.exists(config_file_path):
             self.read_relay_config(config_file_path)
         else:
