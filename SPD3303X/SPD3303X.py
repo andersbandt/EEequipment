@@ -162,8 +162,7 @@ class SPD3303X(PowerSupply):
         '''
         Query for the active channel
         '''
-        self.conn.write("INSTrument?")
-        return self.conn.read()
+        return self.conn.query("INSTrument?")
 
     def get_voltage(self, channel=1):
         '''
@@ -171,8 +170,7 @@ class SPD3303X(PowerSupply):
         '''
         self.check_channel(channel)
 
-        self.conn.write(f"MEASure:VOLTage? CH{channel}")
-        return float(self.conn.read())
+        return float(self.conn.query(f"MEASure:VOLTage? CH{channel}"))
 
     def get_raw_current(self, channel):
         raw_current = float(self.conn.query(f"MEASure:CURRent? CH{channel}"))
@@ -196,8 +194,7 @@ class SPD3303X(PowerSupply):
         '''
         self.check_channel(channel)
 
-        self.conn.write(f"MEASure:POWEr? CH{channel}")
-        return float(self.conn.read())
+        return float(self.conn.query(f"MEASure:POWEr? CH{channel}"))
 
     ##################################
     #### control functions  ##########
@@ -243,8 +240,7 @@ class SPD3303X(PowerSupply):
         if channel not in range(1, self.channel_count + 1):
             raise self.SPD3303Exception('21', f'Channel # must be an integer 1 - {self.channel_count}')
         else:
-            self.conn.write(f"TIMEr:SET? CH{channel},{group}")
-            response = self.conn.read()
+            response = self.conn.query(f"TIMEr:SET? CH{channel},{group}")
             resp_arr = response.split(",")
             return (resp_arr[0], (resp_arr[1], resp_arr[2]))
 
@@ -272,8 +268,7 @@ class SPD3303X(PowerSupply):
     def check_error(self):
         """Check for an error on the system."""
         cmd = self.registry.get_command(self.model, "command", "check_error")
-        self.conn.write(cmd)
-        response = self.conn.read()
+        response = self.conn.query(cmd)
         resp_list = response.split('  ')
 
         if resp_list[0] == '0':
@@ -315,8 +310,7 @@ class SPD3303X(PowerSupply):
         '''
         Query the software version of the equipment
         '''
-        self.conn.write("SYSTem:VERSion?")
-        return self.conn.read()
+        return self.conn.query("SYSTem:VERSion?")
 
     def _decode_hex(self, hex_value):
         # Convert status register value to an integer.
@@ -363,8 +357,7 @@ class SPD3303X(PowerSupply):
         '''
         Query the static Internet Protocol (IP) address for the instrument
         '''
-        self.conn.write(f"IPaddr?")
-        return self.conn.read()
+        return self.conn.query("IPaddr?")
 
     def assign_subnet_mask(self, subnet_mask):
         '''
@@ -377,8 +370,7 @@ class SPD3303X(PowerSupply):
         '''
         Query the subnet mask for the instrument
         '''
-        self.conn.write(f"MASKaddr?")
-        return self.conn.read()
+        return self.conn.query("MASKaddr?")
 
     def assign_gate_address(self, gate_addr):
         '''
@@ -392,8 +384,7 @@ class SPD3303X(PowerSupply):
         Query the gate address for the instrument
         WARING: This command is invalid when DHCP is on
         '''
-        self.conn.write(f"GATEaddr?")
-        return self.conn.read()
+        return self.conn.query("GATEaddr?")
 
     def dhcp(self, state):
         '''
@@ -408,8 +399,7 @@ class SPD3303X(PowerSupply):
         '''
         Query to see the status of DHCP
         '''
-        self.conn.write(f"DHCP?")
-        return self.conn.read()
+        return self.conn.query("DHCP?")
 
     ##################################
     #### calibration functions  ######

@@ -8,6 +8,8 @@ import serial
 
 # import other modules
 import configparser
+import threading
+from contextlib import contextmanager
 import abc
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -125,6 +127,39 @@ class ConnectionHandler(ABC):
     """Abstract connection handler - defines the protocol"""
     status = False
 
+    # Guards the underlying transport so concurrent threads (e.g. the Logger
+    # record thread and the PS tab status poll) cannot interleave a write from
+    # one thread with a read from another. Without this the SPD3303X hands the
+    # wrong reply to the wrong caller (ValueError on float()) and leaves an
+    # orphaned response in the USBTMC endpoint, which surfaces later as
+    # [Errno 75] Overflow.
+    _lock_factory_guard = threading.Lock()
+
+    @property
+    def io_lock(self) -> threading.RLock:
+        """Per-instance reentrant transport lock, created on first use.
+
+        Lazily built because handler subclasses don't call super().__init__().
+        """
+        lock = self.__dict__.get("_io_lock")
+        if lock is None:
+            with ConnectionHandler._lock_factory_guard:
+                lock = self.__dict__.get("_io_lock")
+                if lock is None:
+                    lock = threading.RLock()
+                    self.__dict__["_io_lock"] = lock
+        return lock
+
+    @contextmanager
+    def transaction(self):
+        """Hold the transport lock across a multi-step exchange.
+
+        Use for any write-then-read pair so no other thread can slip a command
+        in between: ``with self.conn.transaction(): ...``
+        """
+        with self.io_lock:
+            yield self
+
     @abstractmethod
     def connect(self, config: dict):
         pass
@@ -214,18 +249,21 @@ class PyVISAHandler(ConnectionHandler):
         self.status = False
 
     def write(self, cmd: str):
-        self.inst.write(cmd)
+        with self.io_lock:
+            self.inst.write(cmd)
 
     def read(self) -> str:
         if not self.status:
             raise RuntimeError("Not connected")
-        return self.inst.read()
+        with self.io_lock:
+            return self.inst.read()
 
     def query(self, cmd: str):
         if not self.status:
             raise RuntimeError("Not connected, can't query")
 
-        return self.inst.query(cmd)
+        with self.io_lock:
+            return self.inst.query(cmd)
 
 
 class SerialHandler(ConnectionHandler):
@@ -271,13 +309,15 @@ class SerialHandler(ConnectionHandler):
         if not self.status:
             raise RuntimeError("Not connected")
 
-        self.inst.write((cmd + "\n").encode())
+        with self.io_lock:
+            self.inst.write((cmd + "\n").encode())
 
     def read(self, decode=True) -> str:
         if not self.status:
             raise RuntimeError("Not connected")
 
-        val = self.inst.readline()
+        with self.io_lock:
+            val = self.inst.readline()
         if decode:
             try:
                 val = val.decode('utf-8').strip()
@@ -290,8 +330,9 @@ class SerialHandler(ConnectionHandler):
         if not self.status:
             raise RuntimeError("Not connected")
 
-        self.write(cmd)
-        return self.read()
+        with self.io_lock:
+            self.write(cmd)
+            return self.read()
 
 
 # ============================================================================
@@ -439,8 +480,9 @@ class PowerSupply(TestEquipment):
 
         cmd = self.registry.get_command(self.model, "command", "get_set_voltage")
         cmd = cmd.format(channel=channel)
-        self.conn.write(cmd)
-        response = self.conn.read()
+        # query() is atomic under the transport lock; a separate write/read
+        # pair can be interleaved by another thread and return the wrong reply.
+        response = self.conn.query(cmd)
         return float(response)
 
     def get_set_current(self, channel=1):
@@ -449,8 +491,7 @@ class PowerSupply(TestEquipment):
 
         cmd = self.registry.get_command(self.model, "command", "get_set_current")
         cmd = cmd.format(channel=channel)
-        self.conn.write(cmd)
-        response = self.conn.read()
+        response = self.conn.query(cmd)
         return float(response)
 
     def get_voltage(self, channel=1):
