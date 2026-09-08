@@ -188,6 +188,15 @@ class ConnectionHandler(ABC):
         """
         raise NotImplementedError(f"{type(self).__name__} has no raw read")
 
+    def flush(self):
+        """Discard anything left unread on the transport.
+
+        A query that times out leaves the instrument's reply queued; the next
+        read then returns *that* answer instead of its own, and every
+        subsequent exchange is off by one. Call this after a failed exchange
+        to resynchronise. Best effort: never raises.
+        """
+
     def query_raw(self, cmd: str) -> bytes:
         """Write a command and read its binary response atomically.
 
@@ -299,6 +308,18 @@ class PyVISAHandler(ConnectionHandler):
             finally:
                 self.inst.read_termination = saved
 
+    def flush(self):
+        if not self.status or self.inst is None:
+            return
+        with self.io_lock:
+            try:
+                self.inst.clear()
+                logger.debug("VISA interface cleared after a failed exchange")
+            except Exception as e:
+                # Some backends don't implement clear(); a stale reply is
+                # better than an exception thrown from error recovery.
+                logger.debug(f"VISA clear during recovery skipped: {e}")
+
 
 class SerialHandler(ConnectionHandler):
     """Handles serial protocol"""
@@ -368,6 +389,15 @@ class SerialHandler(ConnectionHandler):
             self.write(cmd)
             return self.read()
 
+    def flush(self):
+        if not self.status or self.inst is None:
+            return
+        with self.io_lock:
+            try:
+                self.inst.reset_input_buffer()
+            except Exception as e:
+                logger.debug(f"Serial input flush during recovery skipped: {e}")
+
 
 # ============================================================================
 # TEST EQUIPMENT BASE CLASSES
@@ -420,6 +450,15 @@ class TestEquipment(ABC):
     @abstractmethod
     def read_value(self):
         pass
+
+    def recover(self):
+        """Resynchronise the transport after a failed exchange.
+
+        Use when an error has been caught and the caller intends to keep
+        talking to the instrument -- without this, a timed-out query's reply
+        arrives as the answer to the *next* one.
+        """
+        self.conn.flush()
 
     def clear(self):
         cmd = self.registry.get_command(self.model, "command", "clear")
@@ -1088,22 +1127,49 @@ class Oscilloscope(TestEquipment):
     def measure_clear(self):
         self.conn.write(self._cmd("measure_clear"))
 
+    # Measurements gathered by measure_all(), in report order. Names are the
+    # dict keys and the CSV column suffixes, so changing one renames a column.
+    MEASUREMENTS = (
+        "frequency", "period", "duty_cycle", "vpp", "vmax", "vmin",
+        "vavg", "vrms", "amplitude", "rise_time", "fall_time",
+    )
+
+    def measure(self, name, channel):
+        """Take one measurement by name (see MEASUREMENTS).
+
+        Raises whatever the transport raises -- callers that want to survive a
+        single unsupported or timed-out measurement catch it and call
+        recover(), as measure_all() and OscService.capture() do.
+        """
+        if name not in self.MEASUREMENTS:
+            raise ValueError(
+                f"Unknown measurement '{name}'. Known: {list(self.MEASUREMENTS)}")
+        return getattr(self, f"measure_{name}")(channel)
+
     def measure_all(self, channel):
-        """Grab a snapshot of common measurements for a channel. Returns a dict."""
+        """Take every measurement in MEASUREMENTS for a channel.
+
+        Tolerant by design: a measurement the model doesn't support (or that
+        times out on a channel with no signal) comes back as None, exactly
+        like one the scope can't compute, instead of losing the ten that did
+        work. The transport is resynchronised after each failure so the next
+        measurement doesn't inherit a stale reply.
+        """
+        # Validated once, up front: a bad channel number is a caller bug, and
+        # must not be swallowed into eleven Nones by the loop below.
         self.check_channel(channel)
-        return {
-            "frequency": self.measure_frequency(channel),
-            "period": self.measure_period(channel),
-            "duty_cycle": self.measure_duty_cycle(channel),
-            "vpp": self.measure_vpp(channel),
-            "vmax": self.measure_vmax(channel),
-            "vmin": self.measure_vmin(channel),
-            "vavg": self.measure_vavg(channel),
-            "vrms": self.measure_vrms(channel),
-            "amplitude": self.measure_amplitude(channel),
-            "rise_time": self.measure_rise_time(channel),
-            "fall_time": self.measure_fall_time(channel),
-        }
+
+        results = {}
+        for name in self.MEASUREMENTS:
+            try:
+                results[name] = self.measure(name, channel)
+            except Exception as e:
+                logger.warning(
+                    f"{self.model}: measurement '{name}' failed on channel "
+                    f"{channel}: {type(e).__name__}: {e}")
+                results[name] = None
+                self.recover()
+        return results
 
     # --- Waveform Data Transfer ---
     def get_waveform_data(self, channel, points=0, fmt="BYTE"):
