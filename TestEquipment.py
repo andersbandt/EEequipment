@@ -1,5 +1,6 @@
 
 import logging
+import os
 
 # import needed connection modules
 import pyvisa
@@ -180,6 +181,24 @@ class ConnectionHandler(ABC):
     def query(self, cmd: str) -> str:
         pass
 
+    def read_raw(self) -> bytes:
+        """Read an unterminated binary response.
+
+        Not every transport can do this; handlers that can override it.
+        """
+        raise NotImplementedError(f"{type(self).__name__} has no raw read")
+
+    def query_raw(self, cmd: str) -> bytes:
+        """Write a command and read its binary response atomically.
+
+        Never split this into a bare write() + read_raw() pair -- another
+        thread can slip a command in between and the block data ends up on
+        the wrong caller. See the io_lock note above.
+        """
+        with self.io_lock:
+            self.write(cmd)
+            return self.read_raw()
+
 
 class PyVISAHandler(ConnectionHandler):
     """Handles PyVISA protocol"""
@@ -264,6 +283,21 @@ class PyVISAHandler(ConnectionHandler):
 
         with self.io_lock:
             return self.inst.query(cmd)
+
+    def read_raw(self) -> bytes:
+        if not self.status:
+            raise RuntimeError("Not connected")
+        with self.io_lock:
+            # Binary payloads (waveform blocks, screenshot PNGs) contain 0x0A
+            # bytes. With read_termination set, VISA stops at the first one and
+            # the image comes back truncated, so drop the term char for the
+            # duration of the read and put it back afterwards.
+            saved = self.inst.read_termination
+            self.inst.read_termination = None
+            try:
+                return self.inst.read_raw()
+            finally:
+                self.inst.read_termination = saved
 
 
 class SerialHandler(ConnectionHandler):
@@ -1077,26 +1111,28 @@ class Oscilloscope(TestEquipment):
 
         Returns dict with 'x' (time), 'y' (voltage), and 'preamble' keys.
         """
-        import struct
         self.check_channel(channel)
         self.stop()
 
-        self.conn.write(self._cmd("wav_source", channel=channel))
-        self.conn.write(self._cmd("wav_format", fmt=fmt))
-        self.conn.write(self._cmd("wav_points_mode", mode="NORMal"))
-        if points > 0:
-            self.conn.write(self._cmd("wav_points", points=points))
+        # The whole select-then-download sequence has to be atomic: another
+        # thread querying the same session between the preamble and the data
+        # would get the block, and this call would get their reply.
+        with self.conn.transaction():
+            self.conn.write(self._cmd("wav_source", channel=channel))
+            self.conn.write(self._cmd("wav_format", fmt=fmt))
+            self.conn.write(self._cmd("wav_points_mode", mode="NORMal"))
+            if points > 0:
+                self.conn.write(self._cmd("wav_points", points=points))
 
-        preamble_raw = self.conn.query(self._cmd("wav_get_preamble"))
-        preamble = self._parse_preamble(preamble_raw)
+            preamble_raw = self.conn.query(self._cmd("wav_get_preamble"))
+            preamble = self._parse_preamble(preamble_raw)
 
-        if fmt == "ASCii":
-            raw = self.conn.query(self._cmd("wav_get_data"))
-            y_raw = [float(v) for v in raw.split(",")]
-        else:
-            self.conn.write(self._cmd("wav_get_data"))
-            raw_bytes = self.conn.inst.read_raw()
-            y_raw = self._parse_binary_block(raw_bytes, fmt)
+            if fmt == "ASCii":
+                raw = self.conn.query(self._cmd("wav_get_data"))
+                y_raw = [float(v) for v in raw.split(",")]
+            else:
+                raw_bytes = self.conn.query_raw(self._cmd("wav_get_data"))
+                y_raw = self._parse_binary_block(raw_bytes, fmt)
 
         x_inc = preamble["x_increment"]
         x_orig = preamble["x_origin"]
@@ -1127,14 +1163,23 @@ class Oscilloscope(TestEquipment):
         }
 
     @staticmethod
-    def _parse_binary_block(raw_bytes, fmt):
-        """Parse IEEE 488.2 definite-length block data."""
-        import struct
+    def _extract_ieee_block(raw_bytes):
+        """Return the payload of an IEEE 488.2 definite-length block.
+
+        Layout is ``#<n><length, n digits><payload>``; the instrument may
+        prepend nothing and append a terminator, both of which are stripped.
+        """
         header_idx = raw_bytes.index(ord('#'))
         num_digits = int(chr(raw_bytes[header_idx + 1]))
         data_length = int(raw_bytes[header_idx + 2: header_idx + 2 + num_digits])
         data_start = header_idx + 2 + num_digits
-        data_bytes = raw_bytes[data_start: data_start + data_length]
+        return raw_bytes[data_start: data_start + data_length]
+
+    @staticmethod
+    def _parse_binary_block(raw_bytes, fmt):
+        """Parse IEEE 488.2 definite-length block data."""
+        import struct
+        data_bytes = Oscilloscope._extract_ieee_block(raw_bytes)
 
         if fmt == "BYTE":
             return list(struct.unpack(f"{len(data_bytes)}B", data_bytes))
@@ -1170,6 +1215,81 @@ class Oscilloscope(TestEquipment):
 
     def recall_setup(self, filename):
         self._send_cmd(self._cmd("recall_setup", filename=filename))
+
+    # Leading bytes each image format starts with. Scopes differ on what they
+    # hand back -- the X-series streams PNG, older Agilent models a BMP -- so
+    # the format is detected from the data rather than assumed per model.
+    IMAGE_MAGIC = (
+        (b"\x89PNG\r\n\x1a\n", "png"),
+        (b"BM", "bmp"),
+        (b"GIF8", "gif"),
+        (b"\xff\xd8\xff", "jpg"),
+        (b"II*\x00", "tif"),
+        (b"MM\x00*", "tif"),
+    )
+
+    @staticmethod
+    def detect_image_format(data):
+        """Return the file extension for image bytes, or None if unrecognised."""
+        for magic, ext in Oscilloscope.IMAGE_MAGIC:
+            if data.startswith(magic):
+                return ext
+        return None
+
+    def get_screenshot(self):
+        """Return the current display as image bytes.
+
+        ``save_image`` writes to the *instrument's* filesystem; this pulls the
+        image back to the host so it can be dropped next to the run CSV.
+        Models that cannot stream the display in one query (Tektronix saves to
+        its own disk first) override this.
+
+        Most scopes wrap the image in an IEEE 488.2 block, but not all do, so
+        the header is unwrapped only when it is actually there.
+        """
+        raw = self.conn.query_raw(self._cmd("display_data"))
+        if raw[:1] == b"#":
+            return self._extract_ieee_block(raw)
+        return bytes(raw)
+
+    def screenshot_to_file(self, path):
+        """Write the current display to ``path`` on the host.
+
+        The extension is corrected to match what the scope actually sent, so a
+        BMP never lands on disk named .png. Returns the path written, which may
+        differ from the one passed in.
+        """
+        data = self.get_screenshot()
+
+        fmt = self.detect_image_format(data)
+        if fmt is None:
+            raise ValueError(
+                f"{self.model} did not return a recognisable image "
+                f"({len(data)} bytes, starts with {data[:8]!r})")
+
+        stem, ext = os.path.splitext(path)
+        if ext.lower().lstrip(".") != fmt:
+            path = f"{stem}.{fmt}"
+
+        with open(path, "wb") as f:
+            f.write(data)
+        return path
+
+    def get_enabled_channels(self):
+        """Return the list of channel numbers currently displayed.
+
+        Falls back to an empty list rather than raising if the scope answers
+        something unparseable, so a capture can still record what it did get.
+        """
+        enabled = []
+        for ch in range(1, self.channel_count + 1):
+            try:
+                state = str(self.get_channel_display(ch)).strip().upper()
+            except ValueError:
+                continue
+            if state in ("1", "ON", "TRUE"):
+                enabled.append(ch)
+        return enabled
 
     # --- Math ---
     def math_on(self):
